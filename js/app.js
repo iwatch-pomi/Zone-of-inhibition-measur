@@ -932,42 +932,45 @@ function closeImgNameModal() {
   imgNameModal.style.display = 'none';
 }
 
+// Draw a name badge in the top-left of the given canvas 2D context.
+// All values are in that canvas's pixel space (physical for resultCanvas,
+// logical 960px for the thumbnail canvas).
+function drawNameBadge(ctx, name, scale) {
+  if (!name) return;
+  const pad = Math.round(14 * scale);
+  const fSz = Math.round(20 * scale);
+  const r   = Math.round(7  * scale);
+  ctx.font  = `bold ${fSz}px sans-serif`;
+  const tw   = ctx.measureText(name).width;
+  const boxW = tw + pad * 2;
+  const boxH = fSz + Math.round(pad * 1.4);
+  const x = pad, y = pad;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + boxW - r, y);
+  ctx.arcTo(x + boxW, y,        x + boxW, y + r,        r);
+  ctx.lineTo(x + boxW, y + boxH - r);
+  ctx.arcTo(x + boxW, y + boxH, x + boxW - r, y + boxH, r);
+  ctx.lineTo(x + r,   y + boxH);
+  ctx.arcTo(x,        y + boxH, x, y + boxH - r,        r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y,     x + r, y,                         r);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(0,0,0,0.58)';
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(name, x + pad, y + pad + fSz * 0.82);
+}
+
 function doSaveImage(name) {
   const wasActive = adjustState.active, wasSel = adjustState.selectedIdx;
   adjustState.active = false; adjustState.selectedIdx = null;
   drawCanvas(true);
 
   if (name) {
-    const dpr  = window.devicePixelRatio || 1;
-    const ctx  = resultCanvas.getContext('2d');
-    // Work in physical pixel space (transform was reset to identity by drawCanvas)
-    const pad  = Math.round(14 * dpr);
-    const fSz  = Math.round(20 * dpr);
-    ctx.font   = `bold ${fSz}px sans-serif`;
-    const tw   = ctx.measureText(name).width;
-    const boxW = tw + pad * 2;
-    const boxH = fSz + pad * 1.4;
-    const r    = Math.round(7 * dpr);
-    const x    = pad, y = pad;
-
-    // Rounded-rect background
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + boxW - r, y);
-    ctx.arcTo(x + boxW, y, x + boxW, y + r, r);
-    ctx.lineTo(x + boxW, y + boxH - r);
-    ctx.arcTo(x + boxW, y + boxH, x + boxW - r, y + boxH, r);
-    ctx.lineTo(x + r, y + boxH);
-    ctx.arcTo(x, y + boxH, x, y + boxH - r, r);
-    ctx.lineTo(x, y + r);
-    ctx.arcTo(x, y, x + r, y, r);
-    ctx.closePath();
-    ctx.fillStyle = 'rgba(0,0,0,0.58)';
-    ctx.fill();
-
-    // Name text
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(name, x + pad, y + pad + fSz * 0.82);
+    const dpr = window.devicePixelRatio || 1;
+    const ctx = resultCanvas.getContext('2d');
+    drawNameBadge(ctx, name, dpr);
   }
 
   const link = document.createElement('a');
@@ -1034,17 +1037,22 @@ function persistRecords(records) {
 function captureAnnotatedThumbnail(name) {
   if (!lastResult) return null;
   const dpr = window.devicePixelRatio || 1;
-  const fullW = resultCanvas.width  / dpr;
-  const fullH = resultCanvas.height / dpr;
 
-  // Temporarily render the full un-zoomed annotated image
+  // Render the full un-zoomed annotated image onto resultCanvas
   const wasActive = adjustState.active;
   const wasSel    = adjustState.selectedIdx;
   adjustState.active = false;
   adjustState.selectedIdx = null;
   drawCanvas(true);
 
-  // Downscale to thumbnail
+  // Draw the name badge onto resultCanvas at DPR scale (same as doSaveImage)
+  if (name) {
+    drawNameBadge(resultCanvas.getContext('2d'), name, dpr);
+  }
+
+  // Downscale to thumbnail (badge is already baked into resultCanvas)
+  const fullW = resultCanvas.width  / dpr;
+  const fullH = resultCanvas.height / dpr;
   const thumbW = 960;
   const thumbH = Math.round(fullH * thumbW / fullW);
   const tc  = document.createElement('canvas');
@@ -1058,32 +1066,6 @@ function captureAnnotatedThumbnail(name) {
     0, 0, resultCanvas.width, resultCanvas.height,
     0, 0, thumbW, thumbH
   );
-
-  // Name overlay (thumbnail pixel space — no DPR scaling needed)
-  if (name) {
-    const pad = 14, fSz = 20, r = 7;
-    tCtx.font = `bold ${fSz}px sans-serif`;
-    const tw   = tCtx.measureText(name).width;
-    const boxW = tw + pad * 2;
-    const boxH = fSz + pad * 1.4;
-    const x = pad, y = pad;
-    tCtx.beginPath();
-    tCtx.moveTo(x + r, y);
-    tCtx.lineTo(x + boxW - r, y);
-    tCtx.arcTo(x + boxW, y, x + boxW, y + r, r);
-    tCtx.lineTo(x + boxW, y + boxH - r);
-    tCtx.arcTo(x + boxW, y + boxH, x + boxW - r, y + boxH, r);
-    tCtx.lineTo(x + r, y + boxH);
-    tCtx.arcTo(x, y + boxH, x, y + boxH - r, r);
-    tCtx.lineTo(x, y + r);
-    tCtx.arcTo(x, y, x + r, y, r);
-    tCtx.closePath();
-    tCtx.fillStyle = 'rgba(0,0,0,0.58)';
-    tCtx.fill();
-    tCtx.fillStyle = '#ffffff';
-    tCtx.fillText(name, x + pad, y + pad + fSz * 0.82);
-  }
-
   const dataUrl = tc.toDataURL('image/jpeg', 0.88);
 
   // Restore previous view
