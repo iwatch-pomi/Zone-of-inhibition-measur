@@ -37,13 +37,44 @@ let lastResult  = null;
 const adjustState = {
   active:      false,
   selectedIdx: null,
-  dragMode:    null,   // 'center' | 'edge'
   isDragging:  false,
   lastX:       0,
   lastY:       0,
   downX:       0,
   downY:       0,
 };
+
+const zoneSlider    = document.getElementById('zoneSlider');
+const zoneSliderVal = document.getElementById('zoneSliderVal');
+const zoneSliderWrap = document.getElementById('zoneSliderWrap');
+
+function syncSlider() {
+  if (adjustState.selectedIdx === null || !lastResult) {
+    zoneSliderWrap.style.display = 'none';
+    return;
+  }
+  const m = lastResult.measurements[adjustState.selectedIdx];
+  const { dish, mmPerPx } = lastResult;
+  const minDiam = +(m.disk.r * 2 * 1.15 * mmPerPx).toFixed(1);
+  const maxDiam = +(dish.r  * 2 * 0.92 * mmPerPx).toFixed(1);
+  zoneSlider.min   = minDiam;
+  zoneSlider.max   = maxDiam;
+  zoneSlider.step  = '0.5';
+  zoneSlider.value = m.zoneDiamMm;
+  zoneSliderVal.textContent = `${m.zoneDiamMm} mm`;
+  zoneSliderWrap.style.display = 'flex';
+}
+
+zoneSlider.addEventListener('input', () => {
+  if (adjustState.selectedIdx === null || !lastResult) return;
+  const m = lastResult.measurements[adjustState.selectedIdx];
+  m.zoneDiamMm = +parseFloat(zoneSlider.value).toFixed(1);
+  m.zoneRadius = m.zoneDiamMm / 2 / lastResult.mmPerPx;
+  m.zoneDiamPx = m.zoneRadius * 2;
+  zoneSliderVal.textContent = `${m.zoneDiamMm} mm`;
+  drawCanvas();
+  updateResultsUI();
+});
 
 // ── Screen transitions ────────────────────────────────────────────────────
 function showScreen(name) {
@@ -230,21 +261,9 @@ function drawCanvas(forExport = false) {
     ctx.fillText(label, cx - zoneR + 3, cy - 5);
     ctx.globalAlpha = 1;
 
-    // Adjustment handles — drawn only for the selected zone in adjust mode
+    // Center drag handle — drawn only for the selected zone in adjust mode
     if (isSel) {
       _drawHandle(ctx, cx, cy, color, 'move');
-      _drawHandle(ctx, cx + zoneR, cy, color, 'resize');
-      // Dashed radial guide line
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + zoneR, cy);
-      ctx.strokeStyle = color;
-      ctx.lineWidth   = 1;
-      ctx.globalAlpha = 0.45;
-      ctx.setLineDash([4, 3]);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.globalAlpha = 1;
     }
   });
 }
@@ -318,13 +337,13 @@ function updateResultsUI() {
 function enterAdjustMode() {
   adjustState.active      = true;
   adjustState.selectedIdx = null;
-  adjustState.dragMode    = null;
   adjustState.isDragging  = false;
   adjustToolbar.classList.add('visible');
   canvasWrap.classList.add('adjusting');
   btnAdjust.textContent = '✏ 調整中…';
   btnAdjust.classList.add('btn-warning-active');
   setHint('ディスクをタップして選択してください');
+  zoneSliderWrap.style.display = 'none';
   drawCanvas();
   updateResultsUI();
 }
@@ -332,10 +351,10 @@ function enterAdjustMode() {
 function exitAdjustMode() {
   adjustState.active      = false;
   adjustState.selectedIdx = null;
-  adjustState.dragMode    = null;
   adjustState.isDragging  = false;
   adjustToolbar.classList.remove('visible');
   canvasWrap.classList.remove('adjusting');
+  zoneSliderWrap.style.display = 'none';
   if (btnAdjust) {
     btnAdjust.textContent = '✏ 手動調整';
     btnAdjust.classList.remove('btn-warning-active');
@@ -404,28 +423,15 @@ resultCanvas.addEventListener('pointermove', (e) => {
   // Start drag only after moving > 8px and if a zone is selected
   if (!adjustState.isDragging) {
     if (moved < 8 || adjustState.selectedIdx === null) return;
-    // Determine drag mode from where the drag started
-    const m      = lastResult.measurements[adjustState.selectedIdx];
-    const { cx, cy, r: diskR } = m.disk;
-    const distFromCenter = Math.hypot(adjustState.downX - cx, adjustState.downY - cy);
-    adjustState.dragMode   = (distFromCenter < diskR * 2 + 20) ? 'center' : 'edge';
     adjustState.isDragging = true;
-    setHint(adjustState.dragMode === 'center' ? '中心をドラッグして位置を変更中…' : '外縁をドラッグして半径を変更中…');
+    setHint('ドラッグして位置を変更中…');
   }
 
   if (!adjustState.isDragging || adjustState.selectedIdx === null) return;
 
   const m = lastResult.measurements[adjustState.selectedIdx];
-
-  if (adjustState.dragMode === 'center') {
-    m.disk.cx += x - adjustState.lastX;
-    m.disk.cy += y - adjustState.lastY;
-  } else {
-    const newR = Math.hypot(x - m.disk.cx, y - m.disk.cy);
-    m.zoneRadius  = Math.max(m.disk.r * 1.2, newR);
-    m.zoneDiamMm  = +(m.zoneRadius * 2 * lastResult.mmPerPx).toFixed(1);
-    m.zoneDiamPx  = m.zoneRadius * 2;
-  }
+  m.disk.cx += x - adjustState.lastX;
+  m.disk.cy += y - adjustState.lastY;
 
   adjustState.lastX = x;
   adjustState.lastY = y;
@@ -440,21 +446,18 @@ resultCanvas.addEventListener('pointerup', (e) => {
   if (!adjustState.isDragging) {
     // Treat as tap — update selection
     const hit = hitTestForSelection(x, y);
-    if (hit === null) {
-      adjustState.selectedIdx = null;
-      setHint('ディスクをタップして選択してください');
-    } else {
-      adjustState.selectedIdx = hit;
-      setHint('中心付近をドラッグ→移動 ／ 外側をドラッグ→リサイズ');
-    }
+    adjustState.selectedIdx = hit;
+    setHint(hit !== null
+      ? 'ドラッグ→位置移動 ／ スライダー→直径変更'
+      : 'ディスクをタップして選択してください');
   } else {
     setHint(adjustState.selectedIdx !== null
-      ? '中心付近をドラッグ→移動 ／ 外側をドラッグ→リサイズ'
+      ? 'ドラッグ→位置移動 ／ スライダー→直径変更'
       : 'ディスクをタップして選択してください');
   }
 
   adjustState.isDragging = false;
-  adjustState.dragMode   = null;
+  syncSlider();
   drawCanvas();
   updateResultsUI();
 });

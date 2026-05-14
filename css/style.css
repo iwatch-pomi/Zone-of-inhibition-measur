@@ -365,7 +365,35 @@ tbody tr:nth-child(even) { background: #f8f9ff; }
   z-index: 5;
 }
 .adjust-toolbar.visible { display: flex; }
-.adjust-toolbar span { font-size: 13px; color: #7a5700; flex: 1; min-width: 160px; line-height: 1.4; }
+.adjust-toolbar > span { font-size: 13px; color: #7a5700; flex: 1; min-width: 160px; line-height: 1.4; }
+
+.zone-slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 0 2px;
+}
+.slider-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #7a5700;
+  white-space: nowrap;
+}
+.zone-slider {
+  flex: 1;
+  height: 4px;
+  accent-color: #e6a000;
+  cursor: pointer;
+}
+.slider-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: #7a5700;
+  white-space: nowrap;
+  min-width: 52px;
+  text-align: right;
+}
 
 /* Canvas in adjust mode: disable scroll, show crosshair */
 .result-canvas-wrap.adjusting #resultCanvas {
