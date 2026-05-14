@@ -35,6 +35,7 @@ const zoneSliderVal     = document.getElementById('zoneSliderVal');
 const zoneSliderWrap    = document.getElementById('zoneSliderWrap');
 const zoomLevelEl       = document.getElementById('zoomLevel');
 const panControls       = document.getElementById('panControls');
+const btnZoomReset      = document.getElementById('btnZoomReset');
 
 const processor  = new ZoneProcessor();
 let lastResult   = null;
@@ -47,6 +48,7 @@ function resetView() {
   viewState.scale = 1; viewState.panX = 0; viewState.panY = 0;
   if (zoomLevelEl) zoomLevelEl.textContent = '1×';
   panControls.style.display = 'none';
+  if (btnZoomReset) btnZoomReset.style.display = 'none';
 }
 
 // Shift the viewport by (dx, dy) in logical canvas pixels.
@@ -73,7 +75,8 @@ function applyZoom(factor, pivotX, pivotY) {
   viewState.scale = newScale;
   clampPan();
   zoomLevelEl.textContent = viewState.scale <= 1 ? '1×' : viewState.scale.toFixed(1) + '×';
-  panControls.style.display = viewState.scale > 1 ? 'grid' : 'none';
+  panControls.style.display  = viewState.scale > 1 ? 'grid' : 'none';
+  btnZoomReset.style.display = viewState.scale > 1 ? 'flex' : 'none';
   canvasWrap.style.touchAction = viewState.scale > 1 || adjustState.active ? 'none' : '';
   drawCanvas();
 }
@@ -137,7 +140,7 @@ btnCollapseBottom.addEventListener('click', () => {
 // ── Zoom buttons ──────────────────────────────────────────────────────────
 document.getElementById('btnZoomIn').addEventListener('click',  () => applyZoom(1.6));
 document.getElementById('btnZoomOut').addEventListener('click', () => applyZoom(1 / 1.6));
-zoomLevelEl.addEventListener('click', () => { resetView(); drawCanvas(); });
+btnZoomReset.addEventListener('click', () => { resetView(); drawCanvas(); });
 
 // ── Pan buttons (D-pad) ───────────────────────────────────────────────────
 // Step = 20% of logical canvas width/height per press.
