@@ -198,6 +198,45 @@ function initResultCanvas(result) {
   imageCanvas.height = result.canvasHeight;
   imageCanvas.getContext('2d').putImageData(result.imageData, 0, 0);
   resetView();
+  // Defer fitCanvas so CSS layout has settled (grid/flex dimensions are final)
+  requestAnimationFrame(fitCanvas);
+}
+
+// Set canvas CSS dimensions to maintain exact aspect ratio within available space.
+// Both X and Y must use the same scale factor so getCanvasCoords() works correctly.
+function fitCanvas() {
+  if (!lastResult) return;
+  const cW = resultCanvas.width;
+  const cH = resultCanvas.height;
+  const ratio = cW / cH;
+  const isLandscape = window.innerWidth > window.innerHeight;
+
+  let cssW, cssH;
+  if (isLandscape) {
+    // In landscape grid layout the canvas-wrap cell has defined clientWidth/Height
+    const wrapW = canvasWrap.clientWidth  || Math.floor(window.innerWidth  * 0.6);
+    const wrapH = canvasWrap.clientHeight || Math.floor(window.innerHeight * 0.88);
+    if (wrapW / wrapH > ratio) {
+      cssH = wrapH;
+      cssW = Math.round(cssH * ratio);
+    } else {
+      cssW = wrapW;
+      cssH = Math.round(cssW / ratio);
+    }
+  } else {
+    // Portrait: full container width, height capped at 55% of viewport
+    const maxW = canvasWrap.clientWidth || window.innerWidth;
+    const maxH = Math.floor(window.innerHeight * 0.55);
+    cssW = maxW;
+    cssH = Math.round(cssW / ratio);
+    if (cssH > maxH) {
+      cssH = maxH;
+      cssW = Math.round(cssH * ratio);
+    }
+  }
+
+  resultCanvas.style.width  = cssW + 'px';
+  resultCanvas.style.height = cssH + 'px';
 }
 
 // ── Main draw function ────────────────────────────────────────────────────
@@ -674,4 +713,10 @@ document.getElementById('btnExportCsv').addEventListener('click', () => {
   link.href = URL.createObjectURL(blob);
   link.click();
   URL.revokeObjectURL(link.href);
+});
+
+// ── Resize / orientation handling ────────────────────────────────────────
+window.addEventListener('resize', () => {
+  // Defer to let CSS layout settle (especially after orientation change)
+  requestAnimationFrame(() => { fitCanvas(); if (lastResult) drawCanvas(); });
 });

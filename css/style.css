@@ -243,8 +243,8 @@ html, body {
 #resultCanvas {
   width: 100%;
   display: block;
-  max-height: 60vw;
-  object-fit: contain;
+  /* CSS dimensions are set dynamically by fitCanvas() to maintain exact aspect ratio.
+     max-height constraints cause non-uniform X/Y scaling that breaks pointer coordinate math. */
 }
 
 .legend {
@@ -490,6 +490,85 @@ tbody tr:nth-child(even) { background: #f8f9ff; }
   .capture-body { padding: 48px 40px; }
   .hero-card .petri-icon { font-size: 96px; }
   .hero-card h2 { font-size: 24px; }
-  #resultCanvas { max-height: 50vh; }
   .summary-cards { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ── Landscape orientation ── */
+@media (orientation: landscape) {
+  /* Compact header to save vertical space */
+  .app-header { padding: 7px 16px; gap: 10px; }
+  .app-header .icon { font-size: 20px; }
+  .app-header h1 { font-size: 15px; }
+  .app-header p { display: none; }
+
+  /* Results screen: lock to viewport and use 2-column grid */
+  #screen-results {
+    height: 100vh;
+    min-height: unset;
+    overflow: hidden;
+  }
+
+  #screen-results .results-body {
+    display: grid;
+    grid-template-columns: 1fr minmax(200px, 240px);
+    grid-template-rows: auto 1fr auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  #screen-results .adjust-toolbar {
+    grid-column: 1;
+    grid-row: 1;
+    position: static;
+  }
+
+  #screen-results .result-canvas-wrap {
+    grid-column: 1;
+    grid-row: 2;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #screen-results #resultsWarning {
+    grid-column: 1;
+    grid-row: 3;
+    margin: 4px 8px;
+  }
+
+  #screen-results .results-panel {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    overflow-y: auto;
+    padding: 10px 12px;
+    min-height: 0;
+  }
+
+  #screen-results .results-panel h3 { font-size: 14px; margin-bottom: 10px; }
+
+  #screen-results .results-footer {
+    grid-column: 2;
+    grid-row: 3;
+    position: static;
+    padding: 8px 10px;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  #screen-results .results-footer .btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 11px;
+    padding: 7px 6px;
+  }
+
+  /* Compact adjust toolbar in landscape */
+  #screen-results .adjust-toolbar { padding: 6px 12px; gap: 6px; }
+  #screen-results .boundary-note { font-size: 10.5px; padding: 3px 8px; }
+
+  /* Summary cards: 2 per row in the narrower right panel */
+  #screen-results .summary-cards { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  #screen-results .summary-card { padding: 10px 8px; }
+  #screen-results .summary-card .s-value { font-size: 22px; }
 }
