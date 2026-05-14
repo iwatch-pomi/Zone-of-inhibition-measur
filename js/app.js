@@ -324,14 +324,6 @@ function drawCanvas(forExport = false) {
     ctx.lineWidth   = isSel ? 2.5 : 2;
     ctx.stroke();
 
-    // Disk circle
-    ctx.globalAlpha = baseAlpha;
-    ctx.beginPath();
-    ctx.arc(cx, cy, diskR, 0, Math.PI * 2);
-    ctx.strokeStyle = color;
-    ctx.lineWidth   = 1.5;
-    ctx.stroke();
-
     // Diameter line
     ctx.globalAlpha = dimmed ? 0.2 : 0.65;
     ctx.beginPath();
