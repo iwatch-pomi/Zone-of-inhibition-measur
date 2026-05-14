@@ -33,7 +33,7 @@ class ZoneProcessor {
 
     this._emitStep('disks');
     const disks = this._detectDisks(blurred, width, height, dish);
-    if (disks.length === 0) throw new Error('抗生物質ディスクが検出できませんでした。ディスクが画像内に写っているか確認してください。');
+    // No throw on empty disks — show results screen so user can add zones manually.
 
     this._emitStep('zones');
     const mmPerPx = dishDiameterMm / (dish.r * 2);

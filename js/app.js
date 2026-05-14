@@ -511,7 +511,10 @@ function updateResultsUI() {
 
   const dishCoverage = (dish.r * 2) / Math.max(canvasWidth, canvasHeight);
   const warningEl = document.getElementById('resultsWarning');
-  if (dishCoverage < 0.4) {
+  if (measurements.length === 0) {
+    warningEl.innerHTML = '⚠ ディスクが自動検出できませんでした。「<strong>手動調整</strong>」ボタンを押し、「<strong>＋ ゾーン追加</strong>」でディスクを手動追加してください。';
+    warningEl.style.display = 'block';
+  } else if (dishCoverage < 0.4) {
     warningEl.textContent = '⚠ シャーレが画像の40%未満を占めています。精度向上のため、シャーレを画面いっぱいに撮影してください。';
     warningEl.style.display = 'block';
   } else {
@@ -639,7 +642,9 @@ function enterAdjustMode() {
   canvasWrap.style.touchAction = 'none';
   btnAdjust.textContent = '✏ 調整中…';
   btnAdjust.classList.add('btn-warning-active');
-  setHint('ディスクをタップして選択してください');
+  setHint(lastResult && lastResult.measurements.length === 0
+    ? '「＋ ゾーン追加」を押して追加したい位置をタップしてください'
+    : 'ディスクをタップして選択してください');
   zoneSliderWrap.style.display  = 'none';
   btnDeleteZone.style.display   = 'none';
   drawCanvas();
