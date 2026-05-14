@@ -327,6 +327,23 @@
 
 
 <!-- ═══════════════════════════════════════
+     SAVE IMAGE NAME MODAL
+═══════════════════════════════════════ -->
+<div id="imgNameModal" class="modal-overlay" style="display:none" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <h3>💾 画像保存</h3>
+    <p class="modal-desc">保存する画像の左上に表示する名前を入力してください。</p>
+    <input type="text" id="imgNameInput" class="modal-input"
+           placeholder="例: 患者A ／ 検体番号001" maxlength="60">
+    <div class="modal-actions">
+      <button id="btnImgNameCancel"  class="btn btn-secondary">キャンセル</button>
+      <button id="btnImgNameConfirm" class="btn btn-success">保存する</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════
      SAVE RECORD MODAL
 ═══════════════════════════════════════ -->
 <div id="saveModal" class="modal-overlay" style="display:none" role="dialog" aria-modal="true">

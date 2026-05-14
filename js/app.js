@@ -918,17 +918,87 @@ document.getElementById('btnReanalyze').addEventListener('click', () => {
   showScreen('preview');
 });
 
-document.getElementById('btnSaveImage').addEventListener('click', () => {
-  if (!lastResult) return;
+// ── Image save with name overlay ──────────────────────────────────────────
+const imgNameModal   = document.getElementById('imgNameModal');
+const imgNameInput   = document.getElementById('imgNameInput');
+
+function openImgNameModal() {
+  imgNameInput.value = '';
+  imgNameModal.style.display = 'flex';
+  setTimeout(() => imgNameInput.focus(), 80);
+}
+
+function closeImgNameModal() {
+  imgNameModal.style.display = 'none';
+}
+
+function doSaveImage(name) {
   const wasActive = adjustState.active, wasSel = adjustState.selectedIdx;
   adjustState.active = false; adjustState.selectedIdx = null;
   drawCanvas(true);
+
+  if (name) {
+    const dpr  = window.devicePixelRatio || 1;
+    const ctx  = resultCanvas.getContext('2d');
+    // Work in physical pixel space (transform was reset to identity by drawCanvas)
+    const pad  = Math.round(14 * dpr);
+    const fSz  = Math.round(20 * dpr);
+    ctx.font   = `bold ${fSz}px sans-serif`;
+    const tw   = ctx.measureText(name).width;
+    const boxW = tw + pad * 2;
+    const boxH = fSz + pad * 1.4;
+    const r    = Math.round(7 * dpr);
+    const x    = pad, y = pad;
+
+    // Rounded-rect background
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + boxW - r, y);
+    ctx.arcTo(x + boxW, y, x + boxW, y + r, r);
+    ctx.lineTo(x + boxW, y + boxH - r);
+    ctx.arcTo(x + boxW, y + boxH, x + boxW - r, y + boxH, r);
+    ctx.lineTo(x + r, y + boxH);
+    ctx.arcTo(x, y + boxH, x, y + boxH - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(0,0,0,0.58)';
+    ctx.fill();
+
+    // Name text
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(name, x + pad, y + pad + fSz * 0.82);
+  }
+
   const link = document.createElement('a');
   link.download = `zone_measurement_${Date.now()}.png`;
   link.href = resultCanvas.toDataURL('image/png');
   link.click();
+
   adjustState.active = wasActive; adjustState.selectedIdx = wasSel;
   if (wasActive) drawCanvas();
+}
+
+document.getElementById('btnSaveImage').addEventListener('click', () => {
+  if (!lastResult) return;
+  openImgNameModal();
+});
+
+document.getElementById('btnImgNameCancel').addEventListener('click', closeImgNameModal);
+
+imgNameModal.addEventListener('click', (e) => {
+  if (e.target === imgNameModal) closeImgNameModal();
+});
+
+document.getElementById('btnImgNameConfirm').addEventListener('click', () => {
+  const name = imgNameInput.value.trim();
+  closeImgNameModal();
+  doSaveImage(name);
+});
+
+imgNameInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter')  { e.preventDefault(); document.getElementById('btnImgNameConfirm').click(); }
+  if (e.key === 'Escape') closeImgNameModal();
 });
 
 document.getElementById('btnExportCsv').addEventListener('click', () => {
