@@ -26,6 +26,9 @@ const summaryMax        = document.getElementById('summaryMax');
 const adjustToolbar     = document.getElementById('adjustToolbar');
 const adjustHint        = document.getElementById('adjustHint');
 const btnAdjust         = document.getElementById('btnAdjust');
+const resultsScreen     = document.getElementById('screen-results');
+const btnCollapseTop    = document.getElementById('btnCollapseTop');
+const btnCollapseBottom = document.getElementById('btnCollapseBottom');
 
 const processor = new ZoneProcessor();
 let lastResult  = null;
@@ -46,8 +49,24 @@ const adjustState = {
 function showScreen(name) {
   Object.values(screens).forEach(s => s.classList.remove('active'));
   screens[name].classList.add('active');
-  if (name !== 'results') exitAdjustMode();
+  if (name !== 'results') {
+    resultsScreen.classList.remove('hide-top', 'hide-bottom');
+    btnCollapseTop.textContent    = '▲ 収納';
+    btnCollapseBottom.textContent = '▼ 収納';
+    exitAdjustMode();
+  }
 }
+
+// ── Collapse tabs ─────────────────────────────────────────────────────────
+btnCollapseTop.addEventListener('click', () => {
+  const hidden = resultsScreen.classList.toggle('hide-top');
+  btnCollapseTop.textContent = hidden ? '▼ 展開' : '▲ 収納';
+});
+
+btnCollapseBottom.addEventListener('click', () => {
+  const hidden = resultsScreen.classList.toggle('hide-bottom');
+  btnCollapseBottom.textContent = hidden ? '▲ 展開' : '▼ 収納';
+});
 
 // ── Image capture / upload ────────────────────────────────────────────────
 document.getElementById('btnCamera').addEventListener('click', () => {
