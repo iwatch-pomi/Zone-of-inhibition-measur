@@ -444,13 +444,33 @@ tbody tr:nth-child(even) { background: #f8f9ff; }
   text-align: right;
 }
 
-/* Canvas in adjust mode: disable scroll, show crosshair */
+/* Canvas in adjust / add mode */
 .result-canvas-wrap.adjusting #resultCanvas {
   cursor: crosshair;
   touch-action: none;
 }
+.result-canvas-wrap.add-mode #resultCanvas {
+  cursor: cell;
+}
 .result-canvas-wrap.adjusting {
   outline: 3px solid #ffc107;
+}
+
+/* ── Adjust action row ── */
+.adjust-action-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.btn-add-zone {
+  background: #e8f0fe;
+  color: #1558b0;
+  border: 2px solid #1a73e8;
+}
+.btn-add-zone.btn-warning-active {
+  background: #1a73e8 !important;
+  color: #fff !important;
+  border-color: #1558b0 !important;
 }
 
 /* Adjust button */

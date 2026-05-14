@@ -74,6 +74,7 @@ function clampPan() {
 const adjustState = {
   active:      false,
   selectedIdx: null,
+  addMode:     false,
   isDragging:  false,
   panMode:     false,
   lastX: 0, lastY: 0,
@@ -81,6 +82,9 @@ const adjustState = {
   downX: 0, downY: 0,
   downRawX: 0, downRawY: 0,
 };
+
+const btnAddZone    = document.getElementById('btnAddZone');
+const btnDeleteZone = document.getElementById('btnDeleteZone');
 
 // ── Screen transitions ────────────────────────────────────────────────────
 function showScreen(name) {
@@ -367,9 +371,11 @@ function updateResultsUI() {
 // ── Zone slider ───────────────────────────────────────────────────────────
 function syncSlider() {
   if (adjustState.selectedIdx === null || !lastResult) {
-    zoneSliderWrap.style.display = 'none';
+    zoneSliderWrap.style.display  = 'none';
+    btnDeleteZone.style.display   = 'none';
     return;
   }
+  btnDeleteZone.style.display = 'inline-flex';
   const m = lastResult.measurements[adjustState.selectedIdx];
   const { dish, mmPerPx } = lastResult;
   const minDiam = +(m.disk.r * 2 * 1.15 * mmPerPx).toFixed(1);
@@ -397,6 +403,7 @@ zoneSlider.addEventListener('input', () => {
 function enterAdjustMode() {
   adjustState.active      = true;
   adjustState.selectedIdx = null;
+  adjustState.addMode     = false;
   adjustState.isDragging  = false;
   adjustState.panMode     = false;
   adjustToolbar.classList.add('visible');
@@ -405,7 +412,8 @@ function enterAdjustMode() {
   btnAdjust.textContent = '✏ 調整中…';
   btnAdjust.classList.add('btn-warning-active');
   setHint('ディスクをタップして選択してください');
-  zoneSliderWrap.style.display = 'none';
+  zoneSliderWrap.style.display  = 'none';
+  btnDeleteZone.style.display   = 'none';
   drawCanvas();
   updateResultsUI();
 }
@@ -413,18 +421,84 @@ function enterAdjustMode() {
 function exitAdjustMode() {
   adjustState.active      = false;
   adjustState.selectedIdx = null;
+  adjustState.addMode     = false;
   adjustState.isDragging  = false;
   adjustState.panMode     = false;
   adjustToolbar.classList.remove('visible');
-  canvasWrap.classList.remove('adjusting');
+  canvasWrap.classList.remove('adjusting', 'add-mode');
   canvasWrap.style.touchAction = viewState.scale > 1 ? 'none' : '';
-  zoneSliderWrap.style.display = 'none';
+  zoneSliderWrap.style.display  = 'none';
+  btnDeleteZone.style.display   = 'none';
+  btnAddZone.classList.remove('btn-warning-active');
   if (btnAdjust) {
     btnAdjust.textContent = '✏ 手動調整';
     btnAdjust.classList.remove('btn-warning-active');
   }
   if (lastResult) { drawCanvas(); updateResultsUI(); }
 }
+
+// ── Add / delete zone ─────────────────────────────────────────────────────
+function enterAddMode() {
+  adjustState.addMode     = true;
+  adjustState.selectedIdx = null;
+  canvasWrap.classList.add('add-mode');
+  btnAddZone.classList.add('btn-warning-active');
+  zoneSliderWrap.style.display = 'none';
+  btnDeleteZone.style.display  = 'none';
+  setHint('追加したい位置をタップしてください');
+  drawCanvas();
+  updateResultsUI();
+}
+
+function exitAddMode() {
+  adjustState.addMode = false;
+  canvasWrap.classList.remove('add-mode');
+  btnAddZone.classList.remove('btn-warning-active');
+  setHint(adjustState.selectedIdx !== null
+    ? 'ドラッグ→位置移動 ／ スライダー→直径変更'
+    : 'ディスクをタップして選択してください');
+}
+
+function addZoneAt(imgX, imgY) {
+  if (!lastResult) return;
+  const { measurements, dish, mmPerPx } = lastResult;
+  const avgDiskR = measurements.length > 0
+    ? measurements.reduce((s, m) => s + m.disk.r, 0) / measurements.length
+    : dish.r * 0.067;                      // ~6 mm disk in 90 mm dish
+  const zoneR = avgDiskR * 3.5;
+  const newM = {
+    id:         measurements.length + 1,
+    disk:       { cx: imgX, cy: imgY, r: avgDiskR },
+    zoneRadius: zoneR,
+    diskDiamMm: +(avgDiskR * 2 * mmPerPx).toFixed(1),
+    zoneDiamMm: +(zoneR    * 2 * mmPerPx).toFixed(1),
+    diskDiamPx: avgDiskR * 2,
+    zoneDiamPx: zoneR * 2,
+  };
+  measurements.push(newM);
+  adjustState.selectedIdx = measurements.length - 1;
+  exitAddMode();
+  syncSlider();
+  drawCanvas();
+  updateResultsUI();
+}
+
+function deleteSelectedZone() {
+  if (adjustState.selectedIdx === null || !lastResult) return;
+  lastResult.measurements.splice(adjustState.selectedIdx, 1);
+  lastResult.measurements.forEach((m, i) => { m.id = i + 1; });
+  adjustState.selectedIdx = null;
+  btnDeleteZone.style.display = 'none';
+  syncSlider();
+  setHint('ディスクをタップして選択してください');
+  drawCanvas();
+  updateResultsUI();
+}
+
+btnAddZone.addEventListener('click', () => {
+  if (adjustState.addMode) exitAddMode(); else enterAddMode();
+});
+btnDeleteZone.addEventListener('click', deleteSelectedZone);
 
 function setHint(text) { adjustHint.textContent = text; }
 
@@ -510,14 +584,18 @@ resultCanvas.addEventListener('pointerup', (e) => {
   const c = getCanvasCoords(e);
 
   if (!adjustState.isDragging && adjustState.active) {
-    const hit = hitTestForSelection(c.x, c.y);
-    adjustState.selectedIdx = hit;
-    setHint(hit !== null
-      ? 'ドラッグ→位置移動 ／ スライダー→直径変更'
-      : 'ディスクをタップして選択してください');
-    syncSlider();
-    drawCanvas();
-    updateResultsUI();
+    if (adjustState.addMode) {
+      addZoneAt(c.x, c.y);         // place new zone; exits addMode internally
+    } else {
+      const hit = hitTestForSelection(c.x, c.y);
+      adjustState.selectedIdx = hit;
+      setHint(hit !== null
+        ? 'ドラッグ→位置移動 ／ スライダー→直径変更'
+        : 'ディスクをタップして選択してください');
+      syncSlider();
+      drawCanvas();
+      updateResultsUI();
+    }
   } else if (adjustState.isDragging && adjustState.active) {
     setHint(adjustState.selectedIdx !== null
       ? 'ドラッグ→位置移動 ／ スライダー→直径変更'
