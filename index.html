@@ -39,6 +39,9 @@
       <button id="btnUpload" class="btn btn-outline">
         <span class="btn-icon">🖼</span>画像を選択
       </button>
+      <button id="btnViewRecords" class="btn btn-outline">
+        <span class="btn-icon">📋</span>記録一覧
+      </button>
     </div>
 
     <p class="hint-text">
@@ -273,6 +276,59 @@
       <button id="btnExportCsv" class="btn btn-primary btn-sm">
         📋 CSV出力
       </button>
+      <button id="btnSaveRecord" class="btn btn-primary btn-sm">
+        📥 記録に保存
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════
+     SCREEN 5 — RECORDS LIST
+═══════════════════════════════════════ -->
+<div id="screen-records" class="screen">
+  <header class="app-header">
+    <span class="icon">📋</span>
+    <div>
+      <h1>測定記録</h1>
+      <p>保存した測定結果の一覧</p>
+    </div>
+  </header>
+
+  <div class="records-body">
+    <div class="records-top-bar">
+      <span id="recordsCount" class="records-count"></span>
+      <button id="btnDeleteAllRecords" class="btn btn-danger btn-sm">🗑 すべて削除</button>
+    </div>
+
+    <div id="recordsEmpty" class="records-empty" style="display:none">
+      <span>📭</span>
+      <p>保存された記録はありません。</p>
+      <p>測定結果画面で「📥 記録に保存」を押すと保存できます。</p>
+    </div>
+
+    <div id="recordsList" class="records-list"></div>
+  </div>
+
+  <div class="records-footer">
+    <button id="btnBackFromRecords" class="btn btn-secondary">← 戻る</button>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════
+     SAVE RECORD MODAL
+═══════════════════════════════════════ -->
+<div id="saveModal" class="modal-overlay" style="display:none" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <h3>📥 記録に保存</h3>
+    <p class="modal-desc">この測定結果に名前を付けて保存します。</p>
+    <input type="text" id="recordNameInput" class="modal-input"
+           placeholder="例: 患者A ／ 検体番号001" maxlength="60">
+    <div class="modal-actions">
+      <button id="btnSaveModalCancel" class="btn btn-secondary">キャンセル</button>
+      <button id="btnSaveModalConfirm" class="btn btn-primary">保存する</button>
     </div>
   </div>
 </div>

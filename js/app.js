@@ -12,6 +12,7 @@ const screens   = {
   preview:    document.getElementById('screen-preview'),
   processing: document.getElementById('screen-processing'),
   results:    document.getElementById('screen-results'),
+  records:    document.getElementById('screen-records'),
 };
 const fileInput         = document.getElementById('fileInput');
 const previewImg        = document.getElementById('previewImg');
@@ -891,4 +892,185 @@ document.getElementById('btnExportCsv').addEventListener('click', () => {
 window.addEventListener('resize', () => {
   // Defer to let CSS layout settle (especially after orientation change)
   requestAnimationFrame(() => { fitCanvas(); if (lastResult) drawCanvas(); });
+});
+
+// ── Records (localStorage) ────────────────────────────────────────────────
+const STORAGE_KEY = 'zoi_records_v1';
+
+function loadRecords() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch { return []; }
+}
+
+function persistRecords(records) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+}
+
+function saveRecord(name) {
+  if (!lastResult) return;
+  const records = loadRecords();
+  const measurements = lastResult.measurements.map(m => ({
+    id: m.id, zoneDiamMm: m.zoneDiamMm,
+  }));
+  const avg = measurements.length
+    ? (measurements.reduce((s, m) => s + m.zoneDiamMm, 0) / measurements.length).toFixed(1)
+    : '—';
+  const minV = measurements.length ? Math.min(...measurements.map(m => m.zoneDiamMm)) : null;
+  const maxV = measurements.length ? Math.max(...measurements.map(m => m.zoneDiamMm)) : null;
+  records.unshift({
+    id:       Date.now(),
+    name:     name.trim() || '無題',
+    date:     new Date().toLocaleString('ja-JP'),
+    dishMm:   lastResult.dishDiamMm,
+    diskCount: measurements.length,
+    avgMm:    avg,
+    minMm:    minV,
+    maxMm:    maxV,
+    measurements,
+  });
+  persistRecords(records);
+}
+
+function deleteRecord(id) {
+  persistRecords(loadRecords().filter(r => r.id !== id));
+}
+
+function deleteAllRecords() {
+  persistRecords([]);
+}
+
+// ── Records list rendering ────────────────────────────────────────────────
+function renderRecordsList() {
+  const records = loadRecords();
+  const listEl  = document.getElementById('recordsList');
+  const emptyEl = document.getElementById('recordsEmpty');
+  const countEl = document.getElementById('recordsCount');
+  const delAllBtn = document.getElementById('btnDeleteAllRecords');
+
+  listEl.innerHTML = '';
+
+  if (records.length === 0) {
+    emptyEl.style.display = 'flex';
+    countEl.textContent   = '';
+    delAllBtn.style.display = 'none';
+    return;
+  }
+
+  emptyEl.style.display   = 'none';
+  countEl.textContent     = `${records.length} 件`;
+  delAllBtn.style.display = '';
+
+  records.forEach(r => {
+    const item = document.createElement('div');
+    item.className = 'record-item';
+
+    const fmtMm = v => (v !== null && v !== undefined) ? `${v} mm` : '—';
+
+    item.innerHTML = `
+      <div class="record-item-info">
+        <div class="record-item-name">${escapeHtml(r.name)}</div>
+        <div class="record-item-date">${r.date}</div>
+        <div class="record-item-stats">
+          <span class="record-stat-badge">ディスク <strong>${r.diskCount}</strong></span>
+          <span class="record-stat-badge">平均 <strong>${fmtMm(r.avgMm)}</strong></span>
+          <span class="record-stat-badge">最小 <strong>${fmtMm(r.minMm)}</strong></span>
+          <span class="record-stat-badge">最大 <strong>${fmtMm(r.maxMm)}</strong></span>
+          <span class="record-stat-badge">シャーレ <strong>${r.dishMm} mm</strong></span>
+        </div>
+        <details class="record-detail" style="margin-top:8px">
+          <summary style="font-size:12px;color:var(--text-secondary);cursor:pointer">詳細を表示</summary>
+          <table style="margin-top:6px;width:100%;border-collapse:collapse;font-size:12px">
+            <thead><tr>
+              <th style="text-align:left;padding:3px 6px;border-bottom:1px solid var(--border)">ディスク</th>
+              <th style="text-align:right;padding:3px 6px;border-bottom:1px solid var(--border)">阻止円直径 (mm)</th>
+            </tr></thead>
+            <tbody>
+              ${r.measurements.map(m =>
+                `<tr>
+                  <td style="padding:3px 6px;border-bottom:1px solid var(--border)">${m.id}</td>
+                  <td style="text-align:right;padding:3px 6px;border-bottom:1px solid var(--border)">${m.zoneDiamMm}</td>
+                </tr>`
+              ).join('')}
+            </tbody>
+          </table>
+        </details>
+      </div>
+      <div class="record-item-actions">
+        <button class="btn btn-sm btn-record-delete" data-id="${r.id}">🗑 削除</button>
+      </div>`;
+
+    item.querySelector('.btn-record-delete').addEventListener('click', () => {
+      if (!confirm(`「${r.name}」を削除しますか？`)) return;
+      deleteRecord(r.id);
+      renderRecordsList();
+    });
+
+    listEl.appendChild(item);
+  });
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ── Save modal ────────────────────────────────────────────────────────────
+const saveModal        = document.getElementById('saveModal');
+const recordNameInput  = document.getElementById('recordNameInput');
+
+function openSaveModal() {
+  recordNameInput.value = '';
+  saveModal.style.display = 'flex';
+  setTimeout(() => recordNameInput.focus(), 80);
+}
+
+function closeSaveModal() {
+  saveModal.style.display = 'none';
+}
+
+document.getElementById('btnSaveRecord').addEventListener('click', openSaveModal);
+
+document.getElementById('btnSaveModalCancel').addEventListener('click', closeSaveModal);
+
+saveModal.addEventListener('click', (e) => {
+  if (e.target === saveModal) closeSaveModal();
+});
+
+document.getElementById('btnSaveModalConfirm').addEventListener('click', () => {
+  const name = recordNameInput.value.trim();
+  if (!name) { recordNameInput.focus(); return; }
+  saveRecord(name);
+  closeSaveModal();
+  // Brief confirmation
+  const btn = document.getElementById('btnSaveRecord');
+  const orig = btn.textContent;
+  btn.textContent = '✓ 保存しました';
+  btn.disabled = true;
+  setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 1800);
+});
+
+recordNameInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('btnSaveModalConfirm').click();
+  if (e.key === 'Escape') closeSaveModal();
+});
+
+// ── Records screen navigation ─────────────────────────────────────────────
+document.getElementById('btnViewRecords').addEventListener('click', () => {
+  renderRecordsList();
+  showScreen('records');
+});
+
+document.getElementById('btnBackFromRecords').addEventListener('click', () => {
+  showScreen('capture');
+});
+
+document.getElementById('btnDeleteAllRecords').addEventListener('click', () => {
+  const records = loadRecords();
+  if (records.length === 0) return;
+  if (!confirm(`保存された ${records.length} 件の記録をすべて削除しますか？`)) return;
+  deleteAllRecords();
+  renderRecordsList();
 });
