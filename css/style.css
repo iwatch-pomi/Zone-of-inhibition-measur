@@ -107,6 +107,19 @@ html, body {
 .btn-sm { padding: 10px 16px; font-size: 14px; border-radius: 8px; }
 .btn .btn-icon { font-size: 20px; }
 
+.storage-warning {
+  width: 100%;
+  max-width: 400px;
+  font-size: 12px;
+  color: #7a5700;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 8px;
+  padding: 10px 14px;
+  line-height: 1.5;
+  text-align: left;
+}
+
 .hint-text {
   font-size: 12px;
   color: var(--text-secondary);
