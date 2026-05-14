@@ -975,17 +975,20 @@ function captureAnnotatedThumbnail() {
   drawCanvas(true);
 
   // Downscale to thumbnail
-  const thumbW = 480;
+  const thumbW = 960;
   const thumbH = Math.round(fullH * thumbW / fullW);
-  const tc = document.createElement('canvas');
+  const tc  = document.createElement('canvas');
   tc.width  = thumbW;
   tc.height = thumbH;
-  tc.getContext('2d').drawImage(
+  const tCtx = tc.getContext('2d');
+  tCtx.imageSmoothingEnabled = true;
+  tCtx.imageSmoothingQuality = 'high';
+  tCtx.drawImage(
     resultCanvas,
     0, 0, resultCanvas.width, resultCanvas.height,
     0, 0, thumbW, thumbH
   );
-  const dataUrl = tc.toDataURL('image/jpeg', 0.72);
+  const dataUrl = tc.toDataURL('image/jpeg', 0.88);
 
   // Restore previous view
   adjustState.active = wasActive;
