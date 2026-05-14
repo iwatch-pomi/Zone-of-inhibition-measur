@@ -428,7 +428,7 @@ tbody tr:nth-child(even) { background: #f8f9ff; }
 .zoom-reset-btn {
   position: absolute;
   top: 10px;
-  right: 112px; /* sits left of the zoom-controls pill (≈102px wide) + 10px gap */
+  right: 160px;
   background: rgba(0,0,0,0.55);
   border: none;
   border-radius: 20px;
