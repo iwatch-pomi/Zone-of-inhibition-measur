@@ -485,6 +485,30 @@ tbody tr:nth-child(even) { background: #f8f9ff; }
   border-color: #e6ac00 !important;
 }
 
+/* Dish adjust button */
+.btn-dish-adjust {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 2px solid #43a047;
+}
+.btn-dish-adjust.btn-active {
+  background: #43a047 !important;
+  color: #fff !important;
+  border-color: #2e7d32 !important;
+}
+
+/* Dish adjust mode — green theme overrides the yellow toolbar */
+.adjust-toolbar.dish-mode {
+  background: #e8f5e9;
+  border-bottom-color: #43a047;
+}
+.adjust-toolbar.dish-mode > span { color: #1b5e20; }
+
+/* Dish slider uses green accent */
+.dish-zone-slider { accent-color: #43a047; }
+.dish-slider-wrap .slider-label { color: #2e7d32; }
+.dish-slider-wrap .slider-val   { color: #2e7d32; }
+
 /* ── Responsive ── */
 @media (min-width: 600px) {
   .capture-body { padding: 48px 40px; }

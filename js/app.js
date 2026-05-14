@@ -72,11 +72,13 @@ function clampPan() {
 
 // ── Adjust mode state ─────────────────────────────────────────────────────
 const adjustState = {
-  active:      false,
-  selectedIdx: null,
-  addMode:     false,
-  isDragging:  false,
-  panMode:     false,
+  active:         false,
+  selectedIdx:    null,
+  addMode:        false,
+  dishAdjustMode: false,
+  dishDragMode:   null,   // 'move' | 'resize' | null
+  isDragging:     false,
+  panMode:        false,
   lastX: 0, lastY: 0,
   lastRawX: 0, lastRawY: 0,
   downX: 0, downY: 0,
@@ -85,6 +87,11 @@ const adjustState = {
 
 const btnAddZone    = document.getElementById('btnAddZone');
 const btnDeleteZone = document.getElementById('btnDeleteZone');
+const btnAdjustDish = document.getElementById('btnAdjustDish');
+const dishSlider    = document.getElementById('dishSlider');
+const dishSliderVal = document.getElementById('dishSliderVal');
+const dishSliderWrap= document.getElementById('dishSliderWrap');
+const boundaryNote  = document.getElementById('boundaryNote');
 
 // ── Screen transitions ────────────────────────────────────────────────────
 function showScreen(name) {
@@ -172,6 +179,7 @@ async function runAnalysis(dishMm) {
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
   try {
     const result = await processor.analyze(previewImg, dishMm);
+    result.dishDiamMm = dishMm;   // preserve user-entered dish size for recalculation
     lastResult = result;
     Object.values(STEPS).forEach(el => el.classList.add('done'));
     await new Promise(r => setTimeout(r, 300));
@@ -259,13 +267,33 @@ function drawCanvas(forExport = false) {
   if (imageCanvas) ctx.drawImage(imageCanvas, 0, 0);
 
   // Petri dish outline
+  const inDishMode = adjustState.dishAdjustMode && !forExport;
   ctx.beginPath();
   ctx.arc(dish.cx, dish.cy, dish.r, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([6, 4]);
+  if (inDishMode) {
+    ctx.strokeStyle = '#4caf50';
+    ctx.lineWidth   = 3;
+    ctx.setLineDash([]);
+  } else {
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth   = 2;
+    ctx.setLineDash([6, 4]);
+  }
   ctx.stroke();
   ctx.setLineDash([]);
+
+  // Dish adjust handles (center = move, cardinal edge points = resize)
+  if (inDishMode) {
+    _drawHandle(ctx, dish.cx, dish.cy, '#4caf50', 'move');
+    for (const [hx, hy] of [
+      [dish.cx + dish.r, dish.cy],
+      [dish.cx - dish.r, dish.cy],
+      [dish.cx,          dish.cy - dish.r],
+      [dish.cx,          dish.cy + dish.r],
+    ]) {
+      _drawDishResizeHandle(ctx, hx, hy);
+    }
+  }
 
   const inAdjust  = adjustState.active && !forExport;
   const selIdx    = adjustState.selectedIdx;
@@ -375,6 +403,19 @@ function _drawHandle(ctx, x, y, color, type) {
   ctx.stroke();
 }
 
+function _drawDishResizeHandle(ctx, x, y) {
+  const R = 7;
+  ctx.globalAlpha = 0.92;
+  ctx.beginPath();
+  ctx.arc(x, y, R, 0, Math.PI * 2);
+  ctx.fillStyle = '#4caf50';
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
 // ── Results UI (table + summary) ──────────────────────────────────────────
 function updateResultsUI() {
   if (!lastResult) return;
@@ -440,6 +481,78 @@ zoneSlider.addEventListener('input', () => {
   updateResultsUI();
 });
 
+// ── Dish adjust mode ──────────────────────────────────────────────────────
+function enterDishAdjustMode() {
+  adjustState.dishAdjustMode  = true;
+  adjustState.dishDragMode    = null;
+  adjustState.selectedIdx     = null;
+  adjustState.addMode         = false;
+  adjustToolbar.classList.add('dish-mode');
+  canvasWrap.classList.remove('add-mode');
+  btnAdjustDish.classList.add('btn-active');
+  btnAddZone.classList.remove('btn-warning-active');
+  // hide zone-only controls, show dish slider
+  zoneSliderWrap.style.display  = 'none';
+  btnDeleteZone.style.display   = 'none';
+  boundaryNote.style.display    = 'none';
+  syncDishSlider();
+  setHint('中心ドラッグ→移動　外縁ドラッグ→サイズ変更');
+  drawCanvas();
+}
+
+function exitDishAdjustMode() {
+  adjustState.dishAdjustMode = false;
+  adjustState.dishDragMode   = null;
+  adjustToolbar.classList.remove('dish-mode');
+  btnAdjustDish.classList.remove('btn-active');
+  dishSliderWrap.style.display = 'none';
+  boundaryNote.style.display   = '';
+  setHint('ディスクをタップして選択してください');
+  if (lastResult) { drawCanvas(); updateResultsUI(); }
+}
+
+function syncDishSlider() {
+  if (!lastResult || !adjustState.dishAdjustMode) {
+    dishSliderWrap.style.display = 'none';
+    return;
+  }
+  const { dish, canvasWidth, canvasHeight } = lastResult;
+  const maxR = Math.round(Math.min(canvasWidth, canvasHeight) * 0.49);
+  dishSlider.min   = Math.max(20, Math.round(dish.r * 0.3));
+  dishSlider.max   = maxR;
+  dishSlider.step  = '1';
+  dishSlider.value = Math.round(dish.r);
+  dishSliderVal.textContent = Math.round(dish.r) + 'px';
+  dishSliderWrap.style.display = 'flex';
+}
+
+// Recalculate mm values for all zones after the dish circle changes.
+function recalcMeasurementsFromDish() {
+  if (!lastResult) return;
+  const { dish, measurements, dishDiamMm } = lastResult;
+  lastResult.mmPerPx = dishDiamMm / (dish.r * 2);
+  measurements.forEach(m => {
+    m.diskDiamMm = +(m.disk.r       * 2 * lastResult.mmPerPx).toFixed(1);
+    m.zoneDiamMm = +(m.zoneRadius   * 2 * lastResult.mmPerPx).toFixed(1);
+    m.diskDiamPx = m.disk.r     * 2;
+    m.zoneDiamPx = m.zoneRadius * 2;
+  });
+  syncDishSlider();
+  updateResultsUI();
+}
+
+dishSlider.addEventListener('input', () => {
+  if (!adjustState.dishAdjustMode || !lastResult) return;
+  lastResult.dish.r = parseFloat(dishSlider.value);
+  dishSliderVal.textContent = Math.round(lastResult.dish.r) + 'px';
+  recalcMeasurementsFromDish();
+  drawCanvas();
+});
+
+btnAdjustDish.addEventListener('click', () => {
+  if (adjustState.dishAdjustMode) exitDishAdjustMode(); else enterDishAdjustMode();
+});
+
 // ── Adjust mode ───────────────────────────────────────────────────────────
 function enterAdjustMode() {
   adjustState.active      = true;
@@ -460,17 +573,20 @@ function enterAdjustMode() {
 }
 
 function exitAdjustMode() {
+  exitDishAdjustMode();                // clean up dish mode first
   adjustState.active      = false;
   adjustState.selectedIdx = null;
   adjustState.addMode     = false;
   adjustState.isDragging  = false;
   adjustState.panMode     = false;
-  adjustToolbar.classList.remove('visible');
+  adjustToolbar.classList.remove('visible', 'dish-mode');
   canvasWrap.classList.remove('adjusting', 'add-mode');
   canvasWrap.style.touchAction = viewState.scale > 1 ? 'none' : '';
   zoneSliderWrap.style.display  = 'none';
+  dishSliderWrap.style.display  = 'none';
   btnDeleteZone.style.display   = 'none';
   btnAddZone.classList.remove('btn-warning-active');
+  boundaryNote.style.display = '';
   if (btnAdjust) {
     btnAdjust.textContent = '✏ 手動調整';
     btnAdjust.classList.remove('btn-warning-active');
@@ -480,6 +596,7 @@ function exitAdjustMode() {
 
 // ── Add / delete zone ─────────────────────────────────────────────────────
 function enterAddMode() {
+  if (adjustState.dishAdjustMode) exitDishAdjustMode();
   adjustState.addMode     = true;
   adjustState.selectedIdx = null;
   canvasWrap.classList.add('add-mode');
@@ -588,6 +705,12 @@ resultCanvas.addEventListener('pointerdown', (e) => {
     lastX: c.x, lastY: c.y, lastRawX: c.rawX, lastRawY: c.rawY,
     isDragging: false, panMode: false,
   });
+  // Determine dish drag mode at touch-start so the whole gesture is consistent
+  if (adjustState.dishAdjustMode && lastResult) {
+    const { dish } = lastResult;
+    const d = Math.hypot(c.x - dish.cx, c.y - dish.cy);
+    adjustState.dishDragMode = d < dish.r * 0.3 ? 'move' : 'resize';
+  }
 });
 
 resultCanvas.addEventListener('pointermove', (e) => {
@@ -599,12 +722,29 @@ resultCanvas.addEventListener('pointermove', (e) => {
   if (!adjustState.isDragging) {
     if (rawMoved < 8) return;
     adjustState.isDragging = true;
-    // If a zone is selected in adjust mode → move disk; otherwise → pan
-    adjustState.panMode = !(adjustState.active && adjustState.selectedIdx !== null);
-    if (!adjustState.panMode) setHint('ドラッグして位置を変更中…');
+    if (adjustState.dishAdjustMode) {
+      adjustState.panMode = false;
+      setHint(adjustState.dishDragMode === 'move'
+        ? '中心を移動中…'
+        : 'シャーレのサイズを変更中…');
+    } else {
+      // zone mode: selected zone → move; nothing selected → pan
+      adjustState.panMode = !(adjustState.active && adjustState.selectedIdx !== null);
+      if (!adjustState.panMode) setHint('ドラッグして位置を変更中…');
+    }
   }
 
-  if (adjustState.panMode) {
+  if (adjustState.dishAdjustMode && lastResult) {
+    const dish = lastResult.dish;
+    if (adjustState.dishDragMode === 'move') {
+      dish.cx += c.x - adjustState.lastX;
+      dish.cy += c.y - adjustState.lastY;
+    } else {
+      const newR = Math.hypot(c.x - dish.cx, c.y - dish.cy);
+      if (newR > 20) dish.r = newR;
+    }
+    recalcMeasurementsFromDish();
+  } else if (adjustState.panMode) {
     viewState.panX += c.rawX - adjustState.lastRawX;
     viewState.panY += c.rawY - adjustState.lastRawY;
     clampPan();
@@ -624,7 +764,11 @@ resultCanvas.addEventListener('pointermove', (e) => {
 resultCanvas.addEventListener('pointerup', (e) => {
   const c = getCanvasCoords(e);
 
-  if (!adjustState.isDragging && adjustState.active) {
+  if (adjustState.dishAdjustMode) {
+    // In dish mode: finish drag, restore hint
+    setHint('中心ドラッグ→移動　外縁ドラッグ→サイズ変更');
+    drawCanvas();
+  } else if (!adjustState.isDragging && adjustState.active) {
     if (adjustState.addMode) {
       addZoneAt(c.x, c.y);         // place new zone; exits addMode internally
     } else {
