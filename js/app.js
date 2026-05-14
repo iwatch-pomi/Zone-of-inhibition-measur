@@ -308,26 +308,16 @@ function drawCanvas(forExport = false) {
     const dimmed = inAdjust && hasSelect && !isSel;
     const baseAlpha = dimmed ? 0.30 : 0.85;
 
-    // Zone inner fill (clear area — no bacteria)
+    // Zone inner fill — very subtle tint so the zone area is identifiable
     ctx.beginPath();
     ctx.arc(cx, cy, zoneR, 0, Math.PI * 2);
     ctx.fillStyle   = color;
-    ctx.globalAlpha = dimmed ? 0.02 : 0.05;
+    ctx.globalAlpha = dimmed ? 0.02 : 0.06;
     ctx.fill();
-
-    // Outer ring — shows the bacterial growth area beyond the zone boundary.
-    // The ring's inner edge == the zone circle == the measurement boundary.
-    // Rule: align the circle so this colored ring starts where the lawn begins.
-    const ringW = Math.max(12, Math.round(dish.r * 0.055));
-    ctx.beginPath();
-    ctx.arc(cx, cy, zoneR + ringW, 0, Math.PI * 2);  // outer edge of ring
-    ctx.arc(cx, cy, zoneR,         0, Math.PI * 2, true); // inner edge (= zone boundary)
-    ctx.fillStyle   = color;
-    ctx.globalAlpha = isSel ? 0.38 : (dimmed ? 0.04 : 0.20);
-    ctx.fill('evenodd');
     ctx.globalAlpha = 1;
 
-    // Zone border — drawn on top of ring so it sits exactly at the boundary
+    // Zone border — white outer stroke + colored inner stroke.
+    // Align the inner edge of this line to the zone boundary (where bacteria begin).
     ctx.globalAlpha = baseAlpha;
     ctx.beginPath();
     ctx.arc(cx, cy, zoneR, 0, Math.PI * 2);
