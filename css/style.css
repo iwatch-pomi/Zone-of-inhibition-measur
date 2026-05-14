@@ -322,6 +322,38 @@ tbody tr:nth-child(even) { background: #f8f9ff; }
 .alert-error   { background: #fce8e6; border: 1px solid var(--danger); color: #a50000; }
 .alert-info    { background: #e8f0fe; border: 1px solid var(--primary); color: #1a56b0; }
 
+/* ── Pan D-pad ── */
+.pan-controls {
+  position: absolute;
+  top: 52px;   /* just below zoom-controls */
+  right: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, 30px);
+  grid-template-rows: repeat(3, 30px);
+  gap: 2px;
+  z-index: 6;
+}
+.pan-btn {
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .1s;
+}
+.pan-btn:active { background: rgba(0, 0, 0, 0.85); }
+#btnPanUp    { grid-column: 2; grid-row: 1; }
+#btnPanLeft  { grid-column: 1; grid-row: 2; }
+.pan-center  { grid-column: 2; grid-row: 2; }
+#btnPanRight { grid-column: 3; grid-row: 2; }
+#btnPanDown  { grid-column: 2; grid-row: 3; }
+
 /* ── Zoom controls ── */
 .zoom-controls {
   position: absolute;

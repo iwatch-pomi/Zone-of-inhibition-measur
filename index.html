@@ -188,6 +188,14 @@
         <span id="zoomLevel" class="zoom-level" title="タップでリセット">1×</span>
         <button id="btnZoomIn"  class="zoom-btn" aria-label="拡大">＋</button>
       </div>
+      <!-- pan D-pad (visible only when zoomed in) -->
+      <div class="pan-controls" id="panControls" style="display:none">
+        <button class="pan-btn" id="btnPanUp"    aria-label="上へ">▲</button>
+        <button class="pan-btn" id="btnPanLeft"  aria-label="左へ">◀</button>
+        <div class="pan-center"></div>
+        <button class="pan-btn" id="btnPanRight" aria-label="右へ">▶</button>
+        <button class="pan-btn" id="btnPanDown"  aria-label="下へ">▼</button>
+      </div>
       <div class="legend" id="resultLegend">
         <span class="legend-item">
           <span class="legend-dot" style="background:rgba(255,255,255,0.5);border:1px dashed #fff"></span>

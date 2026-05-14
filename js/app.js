@@ -33,6 +33,7 @@ const zoneSlider        = document.getElementById('zoneSlider');
 const zoneSliderVal     = document.getElementById('zoneSliderVal');
 const zoneSliderWrap    = document.getElementById('zoneSliderWrap');
 const zoomLevelEl       = document.getElementById('zoomLevel');
+const panControls       = document.getElementById('panControls');
 
 const processor  = new ZoneProcessor();
 let lastResult   = null;
@@ -44,6 +45,17 @@ const viewState = { scale: 1, panX: 0, panY: 0 };
 function resetView() {
   viewState.scale = 1; viewState.panX = 0; viewState.panY = 0;
   if (zoomLevelEl) zoomLevelEl.textContent = '1×';
+  panControls.style.display = 'none';
+}
+
+// Shift the viewport by (dx, dy) in logical canvas pixels.
+// Positive dx → image moves right (shows left side); negative → shows right side.
+function panBy(dx, dy) {
+  if (viewState.scale <= 1) return;
+  viewState.panX += dx;
+  viewState.panY += dy;
+  clampPan();
+  drawCanvas();
 }
 
 // Zoom around an image-space pivot point (defaults to current view centre).
@@ -60,6 +72,7 @@ function applyZoom(factor, pivotX, pivotY) {
   viewState.scale = newScale;
   clampPan();
   zoomLevelEl.textContent = viewState.scale <= 1 ? '1×' : viewState.scale.toFixed(1) + '×';
+  panControls.style.display = viewState.scale > 1 ? 'grid' : 'none';
   canvasWrap.style.touchAction = viewState.scale > 1 || adjustState.active ? 'none' : '';
   drawCanvas();
 }
@@ -124,6 +137,17 @@ btnCollapseBottom.addEventListener('click', () => {
 document.getElementById('btnZoomIn').addEventListener('click',  () => applyZoom(1.6));
 document.getElementById('btnZoomOut').addEventListener('click', () => applyZoom(1 / 1.6));
 zoomLevelEl.addEventListener('click', () => { resetView(); drawCanvas(); });
+
+// ── Pan buttons (D-pad) ───────────────────────────────────────────────────
+// Step = 20% of logical canvas width/height per press.
+function panStep() {
+  const dpr = window.devicePixelRatio || 1;
+  return Math.round(resultCanvas.width / dpr * 0.20);
+}
+document.getElementById('btnPanUp').addEventListener('click',    () => panBy(0,  panStep()));
+document.getElementById('btnPanDown').addEventListener('click',  () => panBy(0, -panStep()));
+document.getElementById('btnPanLeft').addEventListener('click',  () => panBy( panStep(), 0));
+document.getElementById('btnPanRight').addEventListener('click', () => panBy(-panStep(), 0));
 
 // ── Image capture / upload ────────────────────────────────────────────────
 document.getElementById('btnCamera').addEventListener('click', () => {
