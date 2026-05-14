@@ -449,9 +449,12 @@ function syncSlider() {
   }
   btnDeleteZone.style.display = 'inline-flex';
   const m = lastResult.measurements[adjustState.selectedIdx];
-  const { dish, mmPerPx } = lastResult;
-  const minDiam = +(m.disk.r * 2 * 1.15 * mmPerPx).toFixed(1);
-  const maxDiam = +(dish.r  * 2 * 0.92 * mmPerPx).toFixed(1);
+  const { dish, measurements, mmPerPx } = lastResult;
+  // Use average disk radius across all zones so every slider shares the same minimum.
+  // Individual disk detections vary by a few pixels even though all disks are the same physical size.
+  const avgDiskR = measurements.reduce((s, d) => s + d.disk.r, 0) / measurements.length;
+  const minDiam = +(avgDiskR * 2 * mmPerPx).toFixed(1);
+  const maxDiam = +(dish.r   * 2 * 0.92 * mmPerPx).toFixed(1);
   zoneSlider.min   = minDiam;
   zoneSlider.max   = maxDiam;
   zoneSlider.step  = '0.5';
