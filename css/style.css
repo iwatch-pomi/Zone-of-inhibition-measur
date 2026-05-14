@@ -328,11 +328,36 @@ tbody tr:nth-child(even) { background: #f8f9ff; }
   gap: 8px;
   padding: 10px 16px;
   background: #fff3cd;
+  border-bottom: 2px solid #ffc107;
   align-items: center;
   flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 5;
 }
 .adjust-toolbar.visible { display: flex; }
-.adjust-toolbar span { font-size: 13px; color: #7a5700; flex: 1; }
+.adjust-toolbar span { font-size: 13px; color: #7a5700; flex: 1; min-width: 160px; line-height: 1.4; }
+
+/* Canvas in adjust mode: disable scroll, show crosshair */
+.result-canvas-wrap.adjusting #resultCanvas {
+  cursor: crosshair;
+  touch-action: none;
+}
+.result-canvas-wrap.adjusting {
+  outline: 3px solid #ffc107;
+}
+
+/* Adjust button */
+.btn-adjust {
+  background: #fff3cd;
+  color: #7a5700;
+  border: 2px solid #ffc107;
+}
+.btn-adjust:active, .btn-warning-active {
+  background: #ffc107 !important;
+  color: #fff !important;
+  border-color: #e6ac00 !important;
+}
 
 /* ── Responsive ── */
 @media (min-width: 600px) {
