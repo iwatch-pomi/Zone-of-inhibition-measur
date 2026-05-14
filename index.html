@@ -155,6 +155,7 @@
     <!-- Adjust mode toolbar -->
     <div id="adjustToolbar" class="adjust-toolbar">
       <span id="adjustHint">ディスクをタップして選択してください</span>
+      <p class="boundary-note">📏 円の境界線 = 細菌の増殖が止まる位置（阻止円の外縁）に合わせてください</p>
       <div id="zoneSliderWrap" class="zone-slider-wrap" style="display:none">
         <label class="slider-label" for="zoneSlider">直径</label>
         <input type="range" id="zoneSlider" class="zone-slider">
@@ -168,6 +169,12 @@
       <button class="canvas-tab canvas-tab-top" id="btnCollapseTop" aria-label="上部を収納">▲ 収納</button>
       <canvas id="resultCanvas"></canvas>
       <button class="canvas-tab canvas-tab-bottom" id="btnCollapseBottom" aria-label="下部を収納">▼ 収納</button>
+      <!-- zoom controls -->
+      <div class="zoom-controls">
+        <button id="btnZoomOut" class="zoom-btn" aria-label="縮小">－</button>
+        <span id="zoomLevel" class="zoom-level" title="タップでリセット">1×</span>
+        <button id="btnZoomIn"  class="zoom-btn" aria-label="拡大">＋</button>
+      </div>
       <div class="legend" id="resultLegend">
         <span class="legend-item">
           <span class="legend-dot" style="background:rgba(255,255,255,0.5);border:1px dashed #fff"></span>

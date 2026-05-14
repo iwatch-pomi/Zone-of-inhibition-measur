@@ -322,6 +322,55 @@ tbody tr:nth-child(even) { background: #f8f9ff; }
 .alert-error   { background: #fce8e6; border: 1px solid var(--danger); color: #a50000; }
 .alert-info    { background: #e8f0fe; border: 1px solid var(--primary); color: #1a56b0; }
 
+/* ── Zoom controls ── */
+.zoom-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 20px;
+  padding: 4px 8px;
+  z-index: 6;
+}
+.zoom-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 7px;
+  line-height: 1;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  border-radius: 12px;
+}
+.zoom-btn:active { background: rgba(255,255,255,0.2); }
+.zoom-level {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 30px;
+  text-align: center;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+/* ── Boundary note in adjust toolbar ── */
+.boundary-note {
+  width: 100%;
+  font-size: 11.5px;
+  color: #5a4000;
+  background: rgba(255,200,0,.18);
+  border-radius: 6px;
+  padding: 5px 10px;
+  line-height: 1.4;
+  margin: 0;
+}
+
 /* ── Canvas collapse tabs ── */
 .canvas-tab {
   position: absolute;
