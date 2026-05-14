@@ -87,11 +87,12 @@ const adjustState = {
 
 const btnAddZone    = document.getElementById('btnAddZone');
 const btnDeleteZone = document.getElementById('btnDeleteZone');
-const btnAdjustDish = document.getElementById('btnAdjustDish');
-const dishSlider    = document.getElementById('dishSlider');
-const dishSliderVal = document.getElementById('dishSliderVal');
-const dishSliderWrap= document.getElementById('dishSliderWrap');
-const boundaryNote  = document.getElementById('boundaryNote');
+const btnAdjustDish   = document.getElementById('btnAdjustDish');
+const dishSlider      = document.getElementById('dishSlider');
+const dishSliderVal   = document.getElementById('dishSliderVal');
+const dishSliderWrap  = document.getElementById('dishSliderWrap');
+const boundaryNote    = document.getElementById('boundaryNote');
+const dishBoundaryNote= document.getElementById('dishBoundaryNote');
 
 // ── Screen transitions ────────────────────────────────────────────────────
 function showScreen(name) {
@@ -495,6 +496,7 @@ function enterDishAdjustMode() {
   zoneSliderWrap.style.display  = 'none';
   btnDeleteZone.style.display   = 'none';
   boundaryNote.style.display    = 'none';
+  dishBoundaryNote.style.display = '';
   syncDishSlider();
   setHint('中心ドラッグ→移動　外縁ドラッグ→サイズ変更');
   drawCanvas();
@@ -505,8 +507,9 @@ function exitDishAdjustMode() {
   adjustState.dishDragMode   = null;
   adjustToolbar.classList.remove('dish-mode');
   btnAdjustDish.classList.remove('btn-active');
-  dishSliderWrap.style.display = 'none';
-  boundaryNote.style.display   = '';
+  dishSliderWrap.style.display   = 'none';
+  dishBoundaryNote.style.display = 'none';
+  boundaryNote.style.display     = '';
   setHint('ディスクをタップして選択してください');
   if (lastResult) { drawCanvas(); updateResultsUI(); }
 }
@@ -582,9 +585,10 @@ function exitAdjustMode() {
   adjustToolbar.classList.remove('visible', 'dish-mode');
   canvasWrap.classList.remove('adjusting', 'add-mode');
   canvasWrap.style.touchAction = viewState.scale > 1 ? 'none' : '';
-  zoneSliderWrap.style.display  = 'none';
-  dishSliderWrap.style.display  = 'none';
-  btnDeleteZone.style.display   = 'none';
+  zoneSliderWrap.style.display   = 'none';
+  dishSliderWrap.style.display   = 'none';
+  dishBoundaryNote.style.display = 'none';
+  btnDeleteZone.style.display    = 'none';
   btnAddZone.classList.remove('btn-warning-active');
   boundaryNote.style.display = '';
   if (btnAdjust) {

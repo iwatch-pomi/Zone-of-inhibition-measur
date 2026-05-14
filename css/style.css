@@ -509,6 +509,12 @@ tbody tr:nth-child(even) { background: #f8f9ff; }
 .dish-slider-wrap .slider-label { color: #2e7d32; }
 .dish-slider-wrap .slider-val   { color: #2e7d32; }
 
+/* Dish boundary note — green theme */
+.dish-boundary-note {
+  color: #1b5e20;
+  background: rgba(76, 175, 80, 0.12);
+}
+
 /* ── Responsive ── */
 @media (min-width: 600px) {
   .capture-body { padding: 48px 40px; }
