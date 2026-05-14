@@ -296,6 +296,49 @@ tbody tr:nth-child(even) { background: #f8f9ff; }
   border-radius: 50%;
   margin-right: 6px;
   vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.name-cell {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.zone-name-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-edit-name {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 14px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+.btn-edit-name:hover { opacity: 1; background: var(--bg); }
+
+.zone-name-input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  font-size: 14px;
+  font-family: inherit;
+  padding: 2px 6px;
+  border: 1.5px solid var(--primary);
+  border-radius: 5px;
+  outline: none;
+  background: var(--surface);
+  color: var(--text);
 }
 
 .results-footer {

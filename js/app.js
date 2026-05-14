@@ -209,6 +209,7 @@ async function runAnalysis(dishMm) {
   try {
     const result = await processor.analyze(previewImg, dishMm);
     result.dishDiamMm = dishMm;   // preserve user-entered dish size for recalculation
+    result.measurements.forEach(m => { m.name = `ディスク ${m.id}`; });
     lastResult = result;
     Object.values(STEPS).forEach(el => el.classList.add('done'));
     await new Promise(r => setTimeout(r, 300));
@@ -372,16 +373,22 @@ function drawCanvas(forExport = false) {
 
     ctx.globalAlpha = 1;
 
-    // Label
-    const label    = `${i + 1}: ${m.zoneDiamMm} mm`;
+    // Label — two lines: zone name above, diameter below
+    const nameLine = m.name || String(i + 1);
+    const mmLine   = `${m.zoneDiamMm} mm`;
     const fontSize = Math.max(11, Math.round(canvasWidth / 55));
     ctx.font        = `bold ${fontSize}px sans-serif`;
     ctx.globalAlpha = dimmed ? 0.30 : 1;
-    ctx.lineWidth   = 3;
-    ctx.strokeStyle = '#000';
-    ctx.strokeText(label, cx - zoneR + 3, cy - 5);
-    ctx.fillStyle   = color;
-    ctx.fillText(label, cx - zoneR + 3, cy - 5);
+    const lx = cx - zoneR + 3;
+    const ly2 = cy - 4;
+    const ly1 = ly2 - fontSize - 1;
+    for (const [line, ly] of [[nameLine, ly1], [mmLine, ly2]]) {
+      ctx.lineWidth   = 3;
+      ctx.strokeStyle = '#000';
+      ctx.strokeText(line, lx, ly);
+      ctx.fillStyle   = color;
+      ctx.fillText(line, lx, ly);
+    }
     ctx.globalAlpha = 1;
 
     // Center drag handle (selected zone only)
@@ -430,6 +437,45 @@ function _drawDishResizeHandle(ctx, x, y) {
   ctx.globalAlpha = 1;
 }
 
+// ── Zone name editing ─────────────────────────────────────────────────────
+function escapeHtmlForTable(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function startNameEdit(idx, tr) {
+  const m       = lastResult.measurements[idx];
+  const nameSpan = tr.querySelector('.zone-name-text');
+  const editBtn  = tr.querySelector('.btn-edit-name');
+
+  const input = document.createElement('input');
+  input.type      = 'text';
+  input.value     = m.name || String(m.id);
+  input.className = 'zone-name-input';
+  input.maxLength = 30;
+
+  nameSpan.replaceWith(input);
+  editBtn.style.display = 'none';
+  input.focus();
+  input.select();
+
+  let committed = false;
+  function commit() {
+    if (committed) return;
+    committed = true;
+    const newName = input.value.trim() || `ディスク ${m.id}`;
+    m.name = newName;
+    drawCanvas();
+    updateResultsUI();
+  }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter')  { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { input.value = m.name || String(m.id); input.blur(); }
+  });
+}
+
 // ── Results UI (table + summary) ──────────────────────────────────────────
 function updateResultsUI() {
   if (!lastResult) return;
@@ -448,8 +494,15 @@ function updateResultsUI() {
     const tr    = document.createElement('tr');
     if (isSel) tr.style.background = '#fff9e6';
     tr.innerHTML = `
-      <td><span class="disk-color-dot" style="background:${color}"></span>${m.id}${isSel ? ' ✏' : ''}</td>
-      <td><strong>${m.zoneDiamMm}</strong></td>`;
+      <td>
+        <div class="name-cell">
+          <span class="disk-color-dot" style="background:${color}"></span>
+          <span class="zone-name-text">${escapeHtmlForTable(m.name || String(m.id))}</span>
+          <button class="btn-edit-name" title="名前を変更">✎</button>
+        </div>
+      </td>
+      <td><strong>${m.zoneDiamMm}</strong> mm</td>`;
+    tr.querySelector('.btn-edit-name').addEventListener('click', () => startNameEdit(i, tr));
     measurementsTbody.appendChild(tr);
   });
 
@@ -643,8 +696,10 @@ function addZoneAt(imgX, imgY) {
     ? measurements.reduce((s, m) => s + m.disk.r, 0) / measurements.length
     : dish.r * 0.067;                      // ~6 mm disk in 90 mm dish
   const zoneR = avgDiskR * 3.5;
+  const newId = measurements.length + 1;
   const newM = {
-    id:         measurements.length + 1,
+    id:         newId,
+    name:       `ディスク ${newId}`,
     disk:       { cx: imgX, cy: imgY, r: avgDiskR },
     zoneRadius: zoneR,
     diskDiamMm: +(avgDiskR * 2 * mmPerPx).toFixed(1),
@@ -944,7 +999,7 @@ function saveRecord(name) {
   if (!lastResult) return;
   const records = loadRecords();
   const measurements = lastResult.measurements.map(m => ({
-    id: m.id, zoneDiamMm: m.zoneDiamMm,
+    id: m.id, name: m.name || `ディスク ${m.id}`, zoneDiamMm: m.zoneDiamMm,
   }));
   const avg = measurements.length
     ? (measurements.reduce((s, m) => s + m.zoneDiamMm, 0) / measurements.length).toFixed(1)
@@ -1048,7 +1103,7 @@ function renderRecordsList() {
             <tbody>
               ${r.measurements.map(m =>
                 `<tr>
-                  <td style="padding:3px 6px;border-bottom:1px solid var(--border)">${m.id}</td>
+                  <td style="padding:3px 6px;border-bottom:1px solid var(--border)">${escapeHtml(m.name || String(m.id))}</td>
                   <td style="text-align:right;padding:3px 6px;border-bottom:1px solid var(--border)">${m.zoneDiamMm}</td>
                 </tr>`
               ).join('')}
