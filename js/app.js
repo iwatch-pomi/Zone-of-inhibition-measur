@@ -1031,7 +1031,7 @@ function persistRecords(records) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
 }
 
-function captureAnnotatedThumbnail() {
+function captureAnnotatedThumbnail(name) {
   if (!lastResult) return null;
   const dpr = window.devicePixelRatio || 1;
   const fullW = resultCanvas.width  / dpr;
@@ -1058,6 +1058,32 @@ function captureAnnotatedThumbnail() {
     0, 0, resultCanvas.width, resultCanvas.height,
     0, 0, thumbW, thumbH
   );
+
+  // Name overlay (thumbnail pixel space — no DPR scaling needed)
+  if (name) {
+    const pad = 14, fSz = 20, r = 7;
+    tCtx.font = `bold ${fSz}px sans-serif`;
+    const tw   = tCtx.measureText(name).width;
+    const boxW = tw + pad * 2;
+    const boxH = fSz + pad * 1.4;
+    const x = pad, y = pad;
+    tCtx.beginPath();
+    tCtx.moveTo(x + r, y);
+    tCtx.lineTo(x + boxW - r, y);
+    tCtx.arcTo(x + boxW, y, x + boxW, y + r, r);
+    tCtx.lineTo(x + boxW, y + boxH - r);
+    tCtx.arcTo(x + boxW, y + boxH, x + boxW - r, y + boxH, r);
+    tCtx.lineTo(x + r, y + boxH);
+    tCtx.arcTo(x, y + boxH, x, y + boxH - r, r);
+    tCtx.lineTo(x, y + r);
+    tCtx.arcTo(x, y, x + r, y, r);
+    tCtx.closePath();
+    tCtx.fillStyle = 'rgba(0,0,0,0.58)';
+    tCtx.fill();
+    tCtx.fillStyle = '#ffffff';
+    tCtx.fillText(name, x + pad, y + pad + fSz * 0.82);
+  }
+
   const dataUrl = tc.toDataURL('image/jpeg', 0.88);
 
   // Restore previous view
@@ -1079,7 +1105,7 @@ function saveRecord(name) {
     : '—';
   const minV = measurements.length ? Math.min(...measurements.map(m => m.zoneDiamMm)) : null;
   const maxV = measurements.length ? Math.max(...measurements.map(m => m.zoneDiamMm)) : null;
-  const thumbnail = captureAnnotatedThumbnail();
+  const thumbnail = captureAnnotatedThumbnail(name.trim() || null);
   records.unshift({
     id:        Date.now(),
     name:      name.trim() || '無題',
