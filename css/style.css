@@ -424,14 +424,25 @@ tbody tr:nth-child(even) { background: #f8f9ff; }
   border-radius: 12px;
 }
 .zoom-btn:active { background: rgba(255,255,255,0.2); }
-.zoom-btn-reset {
+
+.zoom-reset-btn {
+  position: absolute;
+  top: 10px;
+  right: 112px; /* sits left of the zoom-controls pill (≈102px wide) + 10px gap */
+  background: rgba(0,0,0,0.55);
+  border: none;
+  border-radius: 20px;
+  color: #fff;
   font-size: 12px;
   font-weight: 700;
-  padding: 2px 8px;
-  background: rgba(255,255,255,0.18);
-  border-radius: 10px;
+  padding: 6px 12px;
+  cursor: pointer;
+  z-index: 6;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   letter-spacing: -.3px;
 }
+.zoom-reset-btn:active { background: rgba(0,0,0,0.8); }
 .zoom-level {
   color: #fff;
   font-size: 12px;
