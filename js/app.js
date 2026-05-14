@@ -231,23 +231,23 @@ function drawCanvas(forExport = false) {
 }
 
 function _drawHandle(ctx, x, y, color, type) {
-  const R = 16;
+  const R = type === 'move' ? 9 : 16;
   ctx.globalAlpha = 0.95;
   ctx.beginPath();
   ctx.arc(x, y, R, 0, Math.PI * 2);
   ctx.fillStyle = '#fff';
   ctx.fill();
   ctx.strokeStyle = color;
-  ctx.lineWidth   = 3;
+  ctx.lineWidth   = 2;
   ctx.stroke();
   ctx.globalAlpha = 1;
 
   ctx.strokeStyle = color;
-  ctx.lineWidth   = 2.5;
+  ctx.lineWidth   = 1.5;
   ctx.beginPath();
   if (type === 'move') {
-    ctx.moveTo(x - 7, y); ctx.lineTo(x + 7, y);
-    ctx.moveTo(x, y - 7); ctx.lineTo(x, y + 7);
+    ctx.moveTo(x - 4, y); ctx.lineTo(x + 4, y);
+    ctx.moveTo(x, y - 4); ctx.lineTo(x, y + 4);
   } else {
     ctx.moveTo(x - 6, y); ctx.lineTo(x + 6, y);
     ctx.moveTo(x + 3, y - 4); ctx.lineTo(x + 6, y); ctx.lineTo(x + 3, y + 4);
