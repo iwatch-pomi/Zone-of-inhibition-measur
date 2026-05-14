@@ -691,6 +691,7 @@ function hitTestForSelection(imgX, imgY) {
 // ── Pointer events (adjust + pan) ────────────────────────────────────────
 resultCanvas.addEventListener('pointerdown', (e) => {
   if (!adjustState.active && viewState.scale <= 1) return;
+  if (e.button !== 0) return;   // ignore right-click / middle-click on desktop
   e.preventDefault();
   resultCanvas.setPointerCapture(e.pointerId);
   const c = getCanvasCoords(e);
@@ -709,6 +710,7 @@ resultCanvas.addEventListener('pointerdown', (e) => {
 
 resultCanvas.addEventListener('pointermove', (e) => {
   if (!adjustState.active && viewState.scale <= 1) return;
+  if (e.buttons === 0) return;  // mouse hover without button press — ignore
   e.preventDefault();
   const c       = getCanvasCoords(e);
   const rawMoved = Math.hypot(c.rawX - adjustState.downRawX, c.rawY - adjustState.downRawY);
