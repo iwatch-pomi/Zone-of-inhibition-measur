@@ -48,7 +48,8 @@ function resetView() {
 
 // Zoom around an image-space pivot point (defaults to current view centre).
 function applyZoom(factor, pivotX, pivotY) {
-  const W = resultCanvas.width, H = resultCanvas.height;
+  const dpr = window.devicePixelRatio || 1;
+  const W = resultCanvas.width / dpr, H = resultCanvas.height / dpr;
   if (pivotX === undefined) {
     pivotX = (W / 2 - viewState.panX) / viewState.scale;
     pivotY = (H / 2 - viewState.panY) / viewState.scale;
@@ -64,7 +65,9 @@ function applyZoom(factor, pivotX, pivotY) {
 }
 
 function clampPan() {
-  const s = viewState.scale, W = resultCanvas.width, H = resultCanvas.height;
+  const dpr = window.devicePixelRatio || 1;
+  const s = viewState.scale;
+  const W = resultCanvas.width / dpr, H = resultCanvas.height / dpr;
   if (s <= 1) { viewState.panX = 0; viewState.panY = 0; return; }
   viewState.panX = Math.max(W * (1 - s), Math.min(0, viewState.panX));
   viewState.panY = Math.max(H * (1 - s), Math.min(0, viewState.panY));
@@ -199,13 +202,16 @@ async function runAnalysis(dishMm) {
 
 // ── Canvas init ───────────────────────────────────────────────────────────
 function initResultCanvas(result) {
-  resultCanvas.width  = result.canvasWidth;
-  resultCanvas.height = result.canvasHeight;
-  // Create offscreen canvas for the image (drawImage respects transforms; putImageData does not)
+  const dpr = window.devicePixelRatio || 1;
+  // Scale the drawing buffer by DPR so each logical pixel maps to dpr physical pixels.
+  // This eliminates blurriness on Retina/high-DPI displays (e.g. iPad, iPhone).
+  resultCanvas.width  = Math.round(result.canvasWidth  * dpr);
+  resultCanvas.height = Math.round(result.canvasHeight * dpr);
+  // Draw the original image (not the downsampled analysis copy) for maximum sharpness.
   imageCanvas = document.createElement('canvas');
-  imageCanvas.width  = result.canvasWidth;
-  imageCanvas.height = result.canvasHeight;
-  imageCanvas.getContext('2d').putImageData(result.imageData, 0, 0);
+  imageCanvas.width  = resultCanvas.width;
+  imageCanvas.height = resultCanvas.height;
+  imageCanvas.getContext('2d').drawImage(previewImg, 0, 0, imageCanvas.width, imageCanvas.height);
   resetView();
   // Defer fitCanvas so CSS layout has settled (grid/flex dimensions are final)
   requestAnimationFrame(fitCanvas);
@@ -215,8 +221,9 @@ function initResultCanvas(result) {
 // Both X and Y must use the same scale factor so getCanvasCoords() works correctly.
 function fitCanvas() {
   if (!lastResult) return;
-  const cW = resultCanvas.width;
-  const cH = resultCanvas.height;
+  const dpr = window.devicePixelRatio || 1;
+  const cW = resultCanvas.width  / dpr;  // logical width
+  const cH = resultCanvas.height / dpr;  // logical height
   const ratio = cW / cH;
   const isLandscape = window.innerWidth > window.innerHeight;
 
@@ -253,19 +260,24 @@ function drawCanvas(forExport = false) {
   if (!lastResult) return;
   const { dish, measurements, canvasWidth } = lastResult;
   const ctx = resultCanvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  // All annotation coordinates are in logical (analysis) pixel space.
+  // Multiply transforms by DPR so they map correctly to the physical buffer.
+  const W = resultCanvas.width  / dpr;
+  const H = resultCanvas.height / dpr;
 
   const s  = forExport ? 1 : viewState.scale;
   const px = forExport ? 0 : viewState.panX;
   const py = forExport ? 0 : viewState.panY;
 
-  // Clear with identity transform
+  // Clear physical buffer with identity transform
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = '#111';
   ctx.fillRect(0, 0, resultCanvas.width, resultCanvas.height);
 
-  // Apply zoom/pan
-  ctx.setTransform(s, 0, 0, s, px, py);
-  if (imageCanvas) ctx.drawImage(imageCanvas, 0, 0);
+  // Apply zoom/pan — DPR scaling maps logical coords to sharp physical pixels
+  ctx.setTransform(s * dpr, 0, 0, s * dpr, px * dpr, py * dpr);
+  if (imageCanvas) ctx.drawImage(imageCanvas, 0, 0, W, H);
 
   // Petri dish outline
   const inDishMode = adjustState.dishAdjustMode && !forExport;
@@ -648,12 +660,17 @@ btnAdjust.addEventListener('click', () => {
 document.getElementById('btnAdjustDone').addEventListener('click', exitAdjustMode);
 
 // ── Coordinate helpers ────────────────────────────────────────────────────
-// Returns both image-space (x, y) and raw screen-canvas (rawX, rawY) coords.
+// Returns image-space (x, y) and raw logical-canvas (rawX, rawY) coords.
+// All coordinates are in logical (analysis) pixels, independent of DPR.
 function getCanvasCoords(e) {
-  const rect   = resultCanvas.getBoundingClientRect();
-  const src    = e.touches ? e.touches[0] : e;
-  const rawX   = (src.clientX - rect.left) * (resultCanvas.width  / rect.width);
-  const rawY   = (src.clientY - rect.top)  * (resultCanvas.height / rect.height);
+  const dpr  = window.devicePixelRatio || 1;
+  const rect = resultCanvas.getBoundingClientRect();
+  const src  = e.touches ? e.touches[0] : e;
+  // Map CSS position → logical canvas pixels (physical buffer / DPR = logical)
+  const W    = resultCanvas.width  / dpr;
+  const H    = resultCanvas.height / dpr;
+  const rawX = (src.clientX - rect.left) * (W / rect.width);
+  const rawY = (src.clientY - rect.top)  * (H / rect.height);
   return {
     x: (rawX - viewState.panX) / viewState.scale,
     y: (rawY - viewState.panY) / viewState.scale,
@@ -795,9 +812,12 @@ resultCanvas.addEventListener('touchmove', (e) => {
   const t1 = e.touches[0], t2 = e.touches[1];
   const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
   if (pinchLastDist > 0 && dist > 0) {
-    const rect  = resultCanvas.getBoundingClientRect();
-    const midRawX = ((t1.clientX + t2.clientX) / 2 - rect.left) * (resultCanvas.width  / rect.width);
-    const midRawY = ((t1.clientY + t2.clientY) / 2 - rect.top)  * (resultCanvas.height / rect.height);
+    const dpr  = window.devicePixelRatio || 1;
+    const rect = resultCanvas.getBoundingClientRect();
+    const W    = resultCanvas.width  / dpr;
+    const H    = resultCanvas.height / dpr;
+    const midRawX = ((t1.clientX + t2.clientX) / 2 - rect.left) * (W / rect.width);
+    const midRawY = ((t1.clientY + t2.clientY) / 2 - rect.top)  * (H / rect.height);
     const pivotX  = (midRawX - viewState.panX) / viewState.scale;
     const pivotY  = (midRawY - viewState.panY) / viewState.scale;
     applyZoom(dist / pinchLastDist, pivotX, pivotY);
