@@ -316,18 +316,12 @@ function drawCanvas(forExport = false) {
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    // Zone border — white outer stroke + colored inner stroke.
-    // Align the inner edge of this line to the zone boundary (where bacteria begin).
+    // Zone border — single stroke at the zone boundary.
     ctx.globalAlpha = baseAlpha;
     ctx.beginPath();
     ctx.arc(cx, cy, zoneR, 0, Math.PI * 2);
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth   = isSel ? 2.5 : 1.5;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(cx, cy, zoneR, 0, Math.PI * 2);
     ctx.strokeStyle = color;
-    ctx.lineWidth   = isSel ? 1.5 : 1;
+    ctx.lineWidth   = isSel ? 2.5 : 2;
     ctx.stroke();
 
     // Disk circle
