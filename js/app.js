@@ -426,8 +426,7 @@ function updateResultsUI() {
     if (isSel) tr.style.background = '#fff9e6';
     tr.innerHTML = `
       <td><span class="disk-color-dot" style="background:${color}"></span>${m.id}${isSel ? ' ✏' : ''}</td>
-      <td><strong>${m.zoneDiamMm}</strong></td>
-      <td>${m.diskDiamMm}</td>`;
+      <td><strong>${m.zoneDiamMm}</strong></td>`;
     measurementsTbody.appendChild(tr);
   });
 
@@ -845,8 +844,8 @@ document.getElementById('btnSaveImage').addEventListener('click', () => {
 
 document.getElementById('btnExportCsv').addEventListener('click', () => {
   if (!lastResult) return;
-  const lines = ['ディスク番号,阻止円直径(mm),ディスク直径(mm)'];
-  lastResult.measurements.forEach(m => lines.push(`${m.id},${m.zoneDiamMm},${m.diskDiamMm}`));
+  const lines = ['ディスク番号,阻止円直径(mm)'];
+  lastResult.measurements.forEach(m => lines.push(`${m.id},${m.zoneDiamMm}`));
   const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   link.download = `zone_measurement_${Date.now()}.csv`;
