@@ -240,35 +240,37 @@ function drawCanvas(forExport = false) {
     const dimmed = inAdjust && hasSelect && !isSel;
     const baseAlpha = dimmed ? 0.30 : 0.85;
 
-    // Zone fill
+    // Zone inner fill (clear area — no bacteria)
     ctx.beginPath();
     ctx.arc(cx, cy, zoneR, 0, Math.PI * 2);
     ctx.fillStyle   = color;
-    ctx.globalAlpha = dimmed ? 0.03 : 0.08;
+    ctx.globalAlpha = dimmed ? 0.02 : 0.05;
     ctx.fill();
 
-    // Zone border
+    // Outer ring — shows the bacterial growth area beyond the zone boundary.
+    // The ring's inner edge == the zone circle == the measurement boundary.
+    // Rule: align the circle so this colored ring starts where the lawn begins.
+    const ringW = Math.max(12, Math.round(dish.r * 0.055));
+    ctx.beginPath();
+    ctx.arc(cx, cy, zoneR + ringW, 0, Math.PI * 2);  // outer edge of ring
+    ctx.arc(cx, cy, zoneR,         0, Math.PI * 2, true); // inner edge (= zone boundary)
+    ctx.fillStyle   = color;
+    ctx.globalAlpha = isSel ? 0.38 : (dimmed ? 0.04 : 0.20);
+    ctx.fill('evenodd');
+    ctx.globalAlpha = 1;
+
+    // Zone border — drawn on top of ring so it sits exactly at the boundary
     ctx.globalAlpha = baseAlpha;
     ctx.beginPath();
     ctx.arc(cx, cy, zoneR, 0, Math.PI * 2);
-    ctx.strokeStyle = color;
-    ctx.lineWidth   = isSel ? 3.5 : 2.5;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth   = isSel ? 2.5 : 1.5;
     ctx.stroke();
-
-    // Boundary tick marks (selected zone only) — outward-pointing at N/S/E/W
-    // These clarify: the circle line itself marks the boundary; bacteria grow outside
-    if (isSel) {
-      ctx.globalAlpha = 0.9;
-      const TICK = 10;
-      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx, dy]) => {
-        ctx.beginPath();
-        ctx.moveTo(cx + dx * zoneR,        cy + dy * zoneR);
-        ctx.lineTo(cx + dx * (zoneR+TICK), cy + dy * (zoneR+TICK));
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth   = 2;
-        ctx.stroke();
-      });
-    }
+    ctx.beginPath();
+    ctx.arc(cx, cy, zoneR, 0, Math.PI * 2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = isSel ? 1.5 : 1;
+    ctx.stroke();
 
     // Disk circle
     ctx.globalAlpha = baseAlpha;
