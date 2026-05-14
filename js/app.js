@@ -906,6 +906,40 @@ function persistRecords(records) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
 }
 
+function captureAnnotatedThumbnail() {
+  if (!lastResult) return null;
+  const dpr = window.devicePixelRatio || 1;
+  const fullW = resultCanvas.width  / dpr;
+  const fullH = resultCanvas.height / dpr;
+
+  // Temporarily render the full un-zoomed annotated image
+  const wasActive = adjustState.active;
+  const wasSel    = adjustState.selectedIdx;
+  adjustState.active = false;
+  adjustState.selectedIdx = null;
+  drawCanvas(true);
+
+  // Downscale to thumbnail
+  const thumbW = 480;
+  const thumbH = Math.round(fullH * thumbW / fullW);
+  const tc = document.createElement('canvas');
+  tc.width  = thumbW;
+  tc.height = thumbH;
+  tc.getContext('2d').drawImage(
+    resultCanvas,
+    0, 0, resultCanvas.width, resultCanvas.height,
+    0, 0, thumbW, thumbH
+  );
+  const dataUrl = tc.toDataURL('image/jpeg', 0.72);
+
+  // Restore previous view
+  adjustState.active = wasActive;
+  adjustState.selectedIdx = wasSel;
+  drawCanvas();
+
+  return dataUrl;
+}
+
 function saveRecord(name) {
   if (!lastResult) return;
   const records = loadRecords();
@@ -917,18 +951,30 @@ function saveRecord(name) {
     : '—';
   const minV = measurements.length ? Math.min(...measurements.map(m => m.zoneDiamMm)) : null;
   const maxV = measurements.length ? Math.max(...measurements.map(m => m.zoneDiamMm)) : null;
+  const thumbnail = captureAnnotatedThumbnail();
   records.unshift({
-    id:       Date.now(),
-    name:     name.trim() || '無題',
-    date:     new Date().toLocaleString('ja-JP'),
-    dishMm:   lastResult.dishDiamMm,
+    id:        Date.now(),
+    name:      name.trim() || '無題',
+    date:      new Date().toLocaleString('ja-JP'),
+    dishMm:    lastResult.dishDiamMm,
     diskCount: measurements.length,
-    avgMm:    avg,
-    minMm:    minV,
-    maxMm:    maxV,
+    avgMm:     avg,
+    minMm:     minV,
+    maxMm:     maxV,
     measurements,
+    thumbnail,
   });
-  persistRecords(records);
+  try {
+    persistRecords(records);
+  } catch (e) {
+    // Storage quota exceeded — save without thumbnail
+    records[0].thumbnail = null;
+    try {
+      persistRecords(records);
+    } catch {
+      alert('ストレージの空き容量が不足しているため保存できませんでした。古い記録を削除してください。');
+    }
+  }
 }
 
 function deleteRecord(id) {
@@ -966,7 +1012,22 @@ function renderRecordsList() {
 
     const fmtMm = v => (v !== null && v !== undefined) ? `${v} mm` : '—';
 
-    item.innerHTML = `
+    // Thumbnail section
+    const thumbWrap = document.createElement('div');
+    thumbWrap.className = 'record-thumb-wrap';
+    if (r.thumbnail) {
+      thumbWrap.innerHTML = `
+        <img class="record-thumb" src="${r.thumbnail}" alt="測定画像" loading="lazy">
+        <span class="record-thumb-hint">タップで拡大</span>`;
+      thumbWrap.addEventListener('click', () => openLightbox(r.thumbnail));
+    } else {
+      thumbWrap.innerHTML = `<div class="record-thumb-placeholder">画像なし</div>`;
+    }
+
+    // Info + actions body
+    const body = document.createElement('div');
+    body.className = 'record-item-body';
+    body.innerHTML = `
       <div class="record-item-info">
         <div class="record-item-name">${escapeHtml(r.name)}</div>
         <div class="record-item-date">${r.date}</div>
@@ -996,18 +1057,42 @@ function renderRecordsList() {
         </details>
       </div>
       <div class="record-item-actions">
-        <button class="btn btn-sm btn-record-delete" data-id="${r.id}">🗑 削除</button>
+        <button class="btn btn-sm btn-record-delete">🗑 削除</button>
       </div>`;
 
-    item.querySelector('.btn-record-delete').addEventListener('click', () => {
+    body.querySelector('.btn-record-delete').addEventListener('click', () => {
       if (!confirm(`「${r.name}」を削除しますか？`)) return;
       deleteRecord(r.id);
       renderRecordsList();
     });
 
+    item.appendChild(thumbWrap);
+    item.appendChild(body);
     listEl.appendChild(item);
   });
 }
+
+// ── Lightbox ──────────────────────────────────────────────────────────────
+const thumbLightbox    = document.getElementById('thumbLightbox');
+const thumbLightboxImg = document.getElementById('thumbLightboxImg');
+
+function openLightbox(src) {
+  thumbLightboxImg.src = src;
+  thumbLightbox.style.display = 'flex';
+}
+
+function closeLightbox() {
+  thumbLightbox.style.display = 'none';
+  thumbLightboxImg.src = '';
+}
+
+document.getElementById('btnCloseLightbox').addEventListener('click', closeLightbox);
+thumbLightbox.addEventListener('click', (e) => {
+  if (e.target === thumbLightbox) closeLightbox();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && thumbLightbox.style.display !== 'none') closeLightbox();
+});
 
 function escapeHtml(str) {
   return String(str)

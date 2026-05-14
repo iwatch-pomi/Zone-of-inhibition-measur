@@ -685,10 +685,16 @@ tbody tr:nth-child(even) { background: #f8f9ff; }
   background: var(--surface);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 14px 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.record-item-body {
   display: flex;
   align-items: flex-start;
   gap: 12px;
+  padding: 14px 16px;
 }
 
 .record-item-info {
@@ -813,4 +819,83 @@ tbody tr:nth-child(even) { background: #f8f9ff; }
   gap: 10px;
   justify-content: flex-end;
   margin-top: 4px;
+}
+
+/* ── Record thumbnail ─────────────────────────────────────────────────────── */
+.record-thumb-wrap {
+  position: relative;
+  background: #000;
+  flex-shrink: 0;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.record-thumb {
+  width: 100%;
+  display: block;
+  object-fit: cover;
+  max-height: 200px;
+  transition: opacity .15s;
+}
+.record-thumb-wrap:active .record-thumb { opacity: 0.85; }
+
+.record-thumb-hint {
+  position: absolute;
+  bottom: 6px;
+  right: 8px;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+.record-thumb-placeholder {
+  width: 100%;
+  height: 80px;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* ── Lightbox ─────────────────────────────────────────────────────────────── */
+.thumb-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  padding: 16px;
+}
+
+.thumb-lightbox-img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+  object-fit: contain;
+  display: block;
+}
+
+.thumb-lightbox-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
 }
