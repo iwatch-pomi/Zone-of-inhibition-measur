@@ -533,7 +533,7 @@ function syncSlider() {
   const maxDiam = +(dish.r   * 2 * 0.92 * mmPerPx).toFixed(1);
   zoneSlider.min   = minDiam;
   zoneSlider.max   = maxDiam;
-  zoneSlider.step  = '0.5';
+  zoneSlider.step  = '0.1';
   zoneSlider.value = m.zoneDiamMm;
   zoneSliderVal.textContent = `${m.zoneDiamMm} mm`;
   zoneSliderWrap.style.display = 'flex';
