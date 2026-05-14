@@ -1,0 +1,25 @@
+{
+  "name": "阻止円測定アプリ",
+  "short_name": "阻止円測定",
+  "description": "抗生物質感受性試験の阻止円（Zone of Inhibition）直径を自動測定するWebアプリ",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f8f9fa",
+  "theme_color": "#1a73e8",
+  "orientation": "portrait-primary",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

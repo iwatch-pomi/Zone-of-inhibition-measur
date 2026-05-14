@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1a73e8">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>阻止円測定アプリ</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     SCREEN 1 — CAPTURE / WELCOME
+═══════════════════════════════════════ -->
+<div id="screen-capture" class="screen active">
+  <header class="app-header">
+    <span class="icon">🧫</span>
+    <div>
+      <h1>阻止円測定</h1>
+      <p>Zone of Inhibition Measurement</p>
+    </div>
+  </header>
+
+  <div class="capture-body">
+    <div class="hero-card">
+      <span class="petri-icon">🔬</span>
+      <h2>抗生物質感受性試験の<br>阻止円を自動測定</h2>
+      <p>シャーレを撮影するだけで、各ディスク周囲の<br>阻止円直径を自動的に計算します。</p>
+    </div>
+
+    <div class="capture-actions">
+      <button id="btnCamera" class="btn btn-primary">
+        <span class="btn-icon">📷</span>カメラで撮影
+      </button>
+      <button id="btnUpload" class="btn btn-outline">
+        <span class="btn-icon">🖼</span>画像を選択
+      </button>
+    </div>
+
+    <p class="hint-text">
+      シャーレ全体が収まるよう、真上から撮影してください。<br>
+      明るい場所で、影が入らないようにするとより正確です。
+    </p>
+  </div>
+
+  <!-- hidden file input -->
+  <input type="file" id="fileInput" accept="image/*" style="display:none">
+</div>
+
+
+<!-- ═══════════════════════════════════════
+     SCREEN 2 — PREVIEW & SETTINGS
+═══════════════════════════════════════ -->
+<div id="screen-preview" class="screen">
+  <header class="app-header">
+    <span class="icon">⚙️</span>
+    <div>
+      <h1>設定・確認</h1>
+      <p>撮影画像を確認し、解析を開始します</p>
+    </div>
+  </header>
+
+  <div class="preview-body">
+    <div class="image-preview-wrap">
+      <img id="previewImg" alt="撮影画像のプレビュー">
+    </div>
+
+    <div class="settings-panel">
+      <h3>⚙ 計測設定</h3>
+
+      <div class="setting-row">
+        <label for="dishSize">シャーレの直径</label>
+        <input type="number" id="dishSize" value="90" min="20" max="300" step="5">
+        <span class="unit">mm</span>
+      </div>
+
+      <div class="tip-box" style="margin-top:12px">
+        <span class="tip-icon">💡</span>
+        <p>標準的なシャーレは直径 <strong>90 mm</strong>（検査用）または <strong>60 mm</strong>（小型）です。
+           実際の直径に合わせて変更すると、より正確な測定値が得られます。</p>
+      </div>
+    </div>
+
+    <div id="previewAlert" class="alert alert-error" style="display:none;margin:0 16px 0;"></div>
+
+    <div style="flex:1"></div>
+
+    <div class="preview-footer">
+      <button id="btnBack" class="btn btn-secondary">
+        <span class="btn-icon">←</span>戻る
+      </button>
+      <button id="btnAnalyze" class="btn btn-primary">
+        <span class="btn-icon">🔍</span>解析開始
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════
+     SCREEN 3 — PROCESSING
+═══════════════════════════════════════ -->
+<div id="screen-processing" class="screen">
+  <header class="app-header">
+    <span class="icon">⏳</span>
+    <div>
+      <h1>解析中…</h1>
+      <p>画像を処理しています</p>
+    </div>
+  </header>
+
+  <div class="processing-body">
+    <div class="spinner"></div>
+    <h2>画像解析中</h2>
+    <p>阻止円を検出しています。<br>しばらくお待ちください。</p>
+
+    <div class="processing-steps">
+      <div class="step-item" id="step-gray">
+        <div class="step-dot"></div>グレースケール変換
+      </div>
+      <div class="step-item" id="step-blur">
+        <div class="step-dot"></div>ノイズ除去（ガウスぼかし）
+      </div>
+      <div class="step-item" id="step-dish">
+        <div class="step-dot"></div>シャーレ検出
+      </div>
+      <div class="step-item" id="step-disks">
+        <div class="step-dot"></div>ディスク位置検出
+      </div>
+      <div class="step-item" id="step-zones">
+        <div class="step-dot"></div>阻止円境界測定
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════
+     SCREEN 4 — RESULTS
+═══════════════════════════════════════ -->
+<div id="screen-results" class="screen">
+  <header class="app-header">
+    <span class="icon">📊</span>
+    <div>
+      <h1>測定結果</h1>
+      <p>阻止円直径の自動計測結果</p>
+    </div>
+  </header>
+
+  <div class="results-body">
+    <!-- Annotated image -->
+    <div class="result-canvas-wrap">
+      <canvas id="resultCanvas"></canvas>
+      <div class="legend" id="resultLegend">
+        <span class="legend-item">
+          <span class="legend-dot" style="background:rgba(255,255,255,0.5);border:1px dashed #fff"></span>
+          シャーレ
+        </span>
+        <span class="legend-item" id="legendZones">
+          <span class="legend-dot" style="background:#e53935"></span>
+          阻止円境界
+        </span>
+      </div>
+    </div>
+
+    <!-- Warning -->
+    <div id="resultsWarning" class="alert alert-warning" style="display:none;margin:12px 16px 0;"></div>
+
+    <div class="results-panel">
+      <h3>📏 測定結果</h3>
+
+      <!-- Summary -->
+      <div class="summary-cards">
+        <div class="summary-card">
+          <div class="s-value" id="summaryDisks">—</div>
+          <div class="s-label">検出ディスク数</div>
+        </div>
+        <div class="summary-card">
+          <div class="s-value" id="summaryAvg">—</div>
+          <div class="s-unit">mm</div>
+          <div class="s-label">平均阻止円</div>
+        </div>
+        <div class="summary-card">
+          <div class="s-value" id="summaryMin">—</div>
+          <div class="s-unit">mm</div>
+          <div class="s-label">最小</div>
+        </div>
+        <div class="summary-card">
+          <div class="s-value" id="summaryMax">—</div>
+          <div class="s-unit">mm</div>
+          <div class="s-label">最大</div>
+        </div>
+      </div>
+
+      <!-- Detail table -->
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ディスク</th>
+              <th>阻止円直径 (mm)</th>
+              <th>ディスク径 (mm)</th>
+            </tr>
+          </thead>
+          <tbody id="measurementsTbody"></tbody>
+        </table>
+      </div>
+
+      <div class="alert alert-info" style="margin-top:16px">
+        💡 測定値が期待と大きく異なる場合は「再解析」で戻り、撮影し直してください。
+        阻止円が重なっている場合は精度が低下することがあります。
+      </div>
+    </div>
+
+    <!-- Footer buttons -->
+    <div class="results-footer">
+      <button id="btnRetake" class="btn btn-secondary btn-sm">
+        📷 撮り直し
+      </button>
+      <button id="btnReanalyze" class="btn btn-outline btn-sm">
+        🔄 再解析
+      </button>
+      <button id="btnSaveImage" class="btn btn-success btn-sm">
+        💾 画像保存
+      </button>
+      <button id="btnExportCsv" class="btn btn-primary btn-sm">
+        📋 CSV出力
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="js/processor.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
