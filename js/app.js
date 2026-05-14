@@ -142,7 +142,7 @@ zoomLevelEl.addEventListener('click', () => { resetView(); drawCanvas(); });
 // Step = 20% of logical canvas width/height per press.
 function panStep() {
   const dpr = window.devicePixelRatio || 1;
-  return Math.round(resultCanvas.width / dpr * 0.20);
+  return Math.round(resultCanvas.width / dpr * 0.10);
 }
 document.getElementById('btnPanUp').addEventListener('click',    () => panBy(0,  panStep()));
 document.getElementById('btnPanDown').addEventListener('click',  () => panBy(0, -panStep()));
