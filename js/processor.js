@@ -340,7 +340,7 @@ class ZoneProcessor {
     // This catches the very start of the brightness departure from the
     // clear-zone plateau — the inner edge of the transition gradient.
     const contrast   = maxVal - lawnBright;
-    const dropThresh = maxVal - contrast * 0.18;
+    const dropThresh = maxVal - contrast * 0.15;
 
     // Primary: first point where profile drops through the threshold
     let boundaryIdx     = smoothed.length - 1;
