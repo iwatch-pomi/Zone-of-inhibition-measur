@@ -324,27 +324,38 @@ class ZoneProcessor {
 
     const smoothed = this._smooth(profile, 11);
 
-    // Peak brightness in profile (centre of clear zone)
+    // Peak brightness (centre of clear zone)
     let maxVal = 0, maxIdx = 0;
     for (let i = 0; i < smoothed.length; i++) {
       if (smoothed[i] > maxVal) { maxVal = smoothed[i]; maxIdx = i; }
     }
 
-    // 1) First drop below 75% of peak (zone→lawn intensity transition)
-    const dropThresh = maxVal * 0.75;
-    let boundaryIdx  = smoothed.length - 1;
+    // Estimate lawn brightness from the far end of the profile (outer 20%)
+    const tailStart  = Math.floor(smoothed.length * 0.80);
+    let   lawnSum    = 0;
+    for (let i = tailStart; i < smoothed.length; i++) lawnSum += smoothed[i];
+    const lawnBright = lawnSum / (smoothed.length - tailStart);
+
+    // Adaptive threshold: 25% into the zone→lawn contrast range.
+    // This captures the INNER edge of the gradient (where brightness first
+    // departs from the clear-zone plateau) rather than the outer edge,
+    // which avoids the systematic over-estimation caused by a fixed ratio.
+    const contrast   = maxVal - lawnBright;
+    const dropThresh = maxVal - contrast * 0.25;
+
+    let boundaryIdx = smoothed.length - 1;
     for (let i = maxIdx; i < smoothed.length; i++) {
       if (smoothed[i] < dropThresh) { boundaryIdx = i; break; }
     }
 
-    // 2) Steepest descent point after peak
+    // Steepest descent after peak (midpoint of gradient)
     let maxNegDeriv = 0, derivBoundary = boundaryIdx;
     for (let i = maxIdx + 1; i < smoothed.length - 1; i++) {
       const deriv = smoothed[i-1] - smoothed[i+1];
       if (deriv > maxNegDeriv) { maxNegDeriv = deriv; derivBoundary = i; }
     }
 
-    // Take the earlier estimate (more conservative = inner edge of boundary)
+    // Take the earlier (inner) of the two estimates
     boundaryIdx = Math.min(boundaryIdx, derivBoundary);
 
     return startR + boundaryIdx;
