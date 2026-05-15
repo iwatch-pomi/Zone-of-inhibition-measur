@@ -32,7 +32,7 @@ class ZoneProcessor {
     if (!dish) throw new Error('シャーレを検出できませんでした。明るい場所で撮り直してください。');
 
     this._emitStep('disks');
-    const disks = this._detectDisks(blurred, width, height, dish);
+    const disks = this._detectDisks(blurred, width, height, dish, dishDiameterMm);
     // No throw on empty disks — show results screen so user can add zones manually.
 
     this._emitStep('zones');
@@ -197,10 +197,10 @@ class ZoneProcessor {
   }
 
   // ── Disk detection ────────────────────────────────────────────────────────
-  // Look for small, very dark circular blobs inside the dish.
+  // Multi-pass: try progressively more sensitive thresholds until disks found.
 
-  _detectDisks(blurred, width, height, dish) {
-    // Estimate agar brightness: median inside dish
+  _detectDisks(blurred, width, height, dish, dishDiameterMm) {
+    // Agar brightness: 65th percentile inside dish (above disk-pixel noise)
     const inside = [];
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
@@ -209,30 +209,54 @@ class ZoneProcessor {
       }
     }
     inside.sort((a, b) => a - b);
-    const agarMedian = inside[Math.floor(inside.length * 0.6)]; // slightly above median
+    const agarMedian = inside[Math.floor(inside.length * 0.65)];
 
-    // Disk pixels are significantly darker than agar
-    const diskThreshold = agarMedian * 0.55;
+    // Use actual dish size for accurate area filter
+    const mmPerPx   = dishDiameterMm / (dish.r * 2);
+    const expectedR = 3 / mmPerPx;                        // 6mm disk → 3mm radius
+    const minArea   = Math.PI * (expectedR * 0.20) ** 2;  // permissive lower bound
+    const maxArea   = Math.PI * (expectedR * 3.50) ** 2;  // permissive upper bound
+    const mergeDist = expectedR * 2.5;
 
-    // Binary mask
-    const mask = new Uint8Array(width * height);
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const dx = x - dish.cx, dy = y - dish.cy;
-        const inDish = dx*dx + dy*dy < (dish.r * 0.92)**2;
-        mask[y*width+x] = (inDish && blurred[y*width+x] < diskThreshold) ? 1 : 0;
+    // Try thresholds from least to most sensitive; stop when candidates found
+    for (const ratio of [0.68, 0.58, 0.48, 0.38]) {
+      const thresh = agarMedian * ratio;
+      const mask   = new Uint8Array(width * height);
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const dx = x - dish.cx, dy = y - dish.cy;
+          const inDish = dx*dx + dy*dy < (dish.r * 0.93)**2;
+          mask[y*width+x] = (inDish && blurred[y*width+x] < thresh) ? 1 : 0;
+        }
       }
-    }
 
-    // Connected components (BFS)
-    const labeled = new Int32Array(width * height).fill(-1);
+      const components = this._connectedComponents(mask, width, height);
+      const candidates = components
+        .filter(c => c.pixels.length >= minArea && c.pixels.length <= maxArea)
+        .map(c => {
+          let sx = 0, sy = 0;
+          for (const idx of c.pixels) { sx += idx % width; sy += Math.floor(idx / width); }
+          const cx = sx / c.pixels.length;
+          const cy = sy / c.pixels.length;
+          const r  = Math.sqrt(c.pixels.length / Math.PI);
+          return { cx, cy, r, area: c.pixels.length };
+        });
+
+      const merged = this._mergeDisks(candidates, mergeDist);
+      if (merged.length > 0) return merged;
+    }
+    return [];
+  }
+
+  _connectedComponents(mask, width, height) {
+    const labeled    = new Int32Array(width * height).fill(-1);
     const components = [];
     let label = 0;
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         if (!mask[y*width+x] || labeled[y*width+x] !== -1) continue;
         const pixels = [];
-        const queue = [y*width+x];
+        const queue  = [y*width+x];
         labeled[y*width+x] = label;
         let qi = 0;
         while (qi < queue.length) {
@@ -250,36 +274,11 @@ class ZoneProcessor {
         label++;
       }
     }
-
-    // Filter by area: disk ~6mm → pixels = π*(3/mmPerPx)²
-    const mmPerPx = 90 / (dish.r * 2); // approximate for filtering
-    const diskRealMm = 6;
-    const expectedR = (diskRealMm * 0.5) / mmPerPx;
-    const minArea = Math.PI * (expectedR * 0.3)**2;
-    const maxArea = Math.PI * (expectedR * 2.5)**2;
-
-    const candidates = components
-      .filter(c => c.pixels.length >= minArea && c.pixels.length <= maxArea)
-      .map(c => {
-        // Compute centroid
-        let sx = 0, sy = 0;
-        for (const idx of c.pixels) {
-          sx += idx % width;
-          sy += Math.floor(idx / width);
-        }
-        const cx = sx / c.pixels.length;
-        const cy = sy / c.pixels.length;
-        // Radius from area (assume circular)
-        const r = Math.sqrt(c.pixels.length / Math.PI);
-        return { cx, cy, r, area: c.pixels.length };
-      });
-
-    // Merge blobs closer than 2×expectedR (to handle donut-shaped disk mask)
-    return this._mergeDisks(candidates, expectedR * 2);
+    return components;
   }
 
   _mergeDisks(disks, mergeDist) {
-    const used = new Array(disks.length).fill(false);
+    const used   = new Array(disks.length).fill(false);
     const merged = [];
     for (let i = 0; i < disks.length; i++) {
       if (used[i]) continue;
@@ -289,67 +288,63 @@ class ZoneProcessor {
         const dx = disks[i].cx - disks[j].cx, dy = disks[i].cy - disks[j].cy;
         if (Math.sqrt(dx*dx+dy*dy) < mergeDist) { group.push(disks[j]); used[j] = true; }
       }
-      const cx = group.reduce((s,d)=>s+d.cx,0)/group.length;
-      const cy = group.reduce((s,d)=>s+d.cy,0)/group.length;
-      const r  = Math.sqrt(group.reduce((s,d)=>s+d.area,0)/Math.PI);
+      const cx = group.reduce((s,d)=>s+d.cx,0) / group.length;
+      const cy = group.reduce((s,d)=>s+d.cy,0) / group.length;
+      const r  = Math.sqrt(group.reduce((s,d)=>s+d.area,0) / Math.PI);
       merged.push({ cx, cy, r });
     }
     return merged;
   }
 
   // ── Zone measurement ──────────────────────────────────────────────────────
-  // Radial intensity profiling: disk (dark) → zone (bright) → lawn (dim).
-  // Finds the transition from bright zone to surrounding lawn.
+  // Radial intensity profiling: disk (dark) → clear zone (bright) → lawn (dim).
 
   _measureZoneRadius(gray, disk, dish, width, height) {
     const { cx, cy, r: diskR } = disk;
     const distToDishEdge = dish.r - Math.hypot(cx - dish.cx, cy - dish.cy);
-    const maxSearchR = Math.min(distToDishEdge * 0.97, dish.r * 0.85);
+    const maxSearchR     = Math.min(distToDishEdge * 0.97, dish.r * 0.88);
 
-    const startR = Math.ceil(diskR * 1.15);
-    if (maxSearchR <= startR) return diskR * 3; // fallback
+    const startR = Math.ceil(diskR * 1.1);
+    if (maxSearchR <= startR) return diskR * 3;
 
-    // Sample radial intensity profile at NUM_ANGLES directions
-    const NUM_ANGLES = 72;
+    // 360-direction radial profile for finer angular resolution
+    const NUM_ANGLES = 360;
+    const angles  = Array.from({ length: NUM_ANGLES }, (_, a) => (a / NUM_ANGLES) * 2 * Math.PI);
     const profile = [];
-    const angles = Array.from({ length: NUM_ANGLES }, (_, a) => (a / NUM_ANGLES) * 2 * Math.PI);
 
     for (let r = startR; r < maxSearchR; r++) {
       let sum = 0, cnt = 0;
       for (const theta of angles) {
         const px = Math.round(cx + r * Math.cos(theta));
         const py = Math.round(cy + r * Math.sin(theta));
-        if (px >= 0 && px < width && py >= 0 && py < height) {
-          sum += gray[py*width+px];
-          cnt++;
-        }
+        if (px >= 0 && px < width && py >= 0 && py < height) { sum += gray[py*width+px]; cnt++; }
       }
-      profile.push(cnt ? sum/cnt : 0);
+      profile.push(cnt ? sum / cnt : 0);
     }
 
-    const smoothed = this._smooth(profile, 9);
+    const smoothed = this._smooth(profile, 11);
 
-    // Find global max in profile (brightest = clear zone)
+    // Peak brightness in profile (centre of clear zone)
     let maxVal = 0, maxIdx = 0;
     for (let i = 0; i < smoothed.length; i++) {
       if (smoothed[i] > maxVal) { maxVal = smoothed[i]; maxIdx = i; }
     }
 
-    // Search after peak for the first significant drop (zone→lawn boundary)
-    // Threshold: 80% of peak value
-    const dropThresh = maxVal * 0.80;
-    let boundaryIdx = smoothed.length - 1;
+    // 1) First drop below 75% of peak (zone→lawn intensity transition)
+    const dropThresh = maxVal * 0.75;
+    let boundaryIdx  = smoothed.length - 1;
     for (let i = maxIdx; i < smoothed.length; i++) {
       if (smoothed[i] < dropThresh) { boundaryIdx = i; break; }
     }
 
-    // Also check derivative: steepest descent after peak
+    // 2) Steepest descent point after peak
     let maxNegDeriv = 0, derivBoundary = boundaryIdx;
     for (let i = maxIdx + 1; i < smoothed.length - 1; i++) {
       const deriv = smoothed[i-1] - smoothed[i+1];
       if (deriv > maxNegDeriv) { maxNegDeriv = deriv; derivBoundary = i; }
     }
-    // Take the earlier of the two estimates
+
+    // Take the earlier estimate (more conservative = inner edge of boundary)
     boundaryIdx = Math.min(boundaryIdx, derivBoundary);
 
     return startR + boundaryIdx;
