@@ -336,27 +336,27 @@ class ZoneProcessor {
     for (let i = tailStart; i < smoothed.length; i++) lawnSum += smoothed[i];
     const lawnBright = lawnSum / (smoothed.length - tailStart);
 
-    // Adaptive threshold: 25% into the zone→lawn contrast range.
-    // This captures the INNER edge of the gradient (where brightness first
-    // departs from the clear-zone plateau) rather than the outer edge,
-    // which avoids the systematic over-estimation caused by a fixed ratio.
+    // Adaptive threshold: 12% into the zone→lawn contrast range.
+    // This catches the very start of the brightness departure from the
+    // clear-zone plateau — the inner edge of the transition gradient.
     const contrast   = maxVal - lawnBright;
-    const dropThresh = maxVal - contrast * 0.25;
+    const dropThresh = maxVal - contrast * 0.12;
 
-    let boundaryIdx = smoothed.length - 1;
+    // Primary: first point where profile drops through the threshold
+    let boundaryIdx     = smoothed.length - 1;
+    let threshTriggered = false;
     for (let i = maxIdx; i < smoothed.length; i++) {
-      if (smoothed[i] < dropThresh) { boundaryIdx = i; break; }
+      if (smoothed[i] < dropThresh) { boundaryIdx = i; threshTriggered = true; break; }
     }
 
-    // Steepest descent after peak (midpoint of gradient)
-    let maxNegDeriv = 0, derivBoundary = boundaryIdx;
-    for (let i = maxIdx + 1; i < smoothed.length - 1; i++) {
-      const deriv = smoothed[i-1] - smoothed[i+1];
-      if (deriv > maxNegDeriv) { maxNegDeriv = deriv; derivBoundary = i; }
+    // Fallback: steepest descent (only if threshold was never crossed)
+    if (!threshTriggered) {
+      let maxNegDeriv = 0;
+      for (let i = maxIdx + 1; i < smoothed.length - 1; i++) {
+        const deriv = smoothed[i-1] - smoothed[i+1];
+        if (deriv > maxNegDeriv) { maxNegDeriv = deriv; boundaryIdx = i; }
+      }
     }
-
-    // Take the earlier (inner) of the two estimates
-    boundaryIdx = Math.min(boundaryIdx, derivBoundary);
 
     return startR + boundaryIdx;
   }
